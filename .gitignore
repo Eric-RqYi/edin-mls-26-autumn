@@ -6,6 +6,10 @@ cuda-tutorial/*/*
 !cuda-tutorial/*/*.sbatch
 *.o
 
+# hw1-asr: per-GPU builds, and the instructors' solution (never commit it)
+hw1-asr/build/
+hw1-asr/_solution/
+
 # Slurm output
 *.out
 
