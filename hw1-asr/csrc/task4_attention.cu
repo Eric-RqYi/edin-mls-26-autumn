@@ -105,20 +105,23 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
 
     float p = 0.0f;  // this lane's exp(s - m_new): unnormalised probability of key j0 + lane
     // ======================== BLANK 4.4 =========================
-    // Online softmax update for this tile (the maxsum_merge rule of task 2):
-    //   m_new = max(m, max of s over the warp)
-    //   skip the rest if m_new is still -INFINITY (no visible key yet)
-    //   corr  = exp(m - m_new)          rescales everything summed so far
-    //   p     = exp(s - m_new)
-    //   l     = l * corr + sum of p over the warp
-    //   acc[c] *= corr for every c < dims;  then m = m_new
+    // Update m, l and acc for this tile, following the worked example in
+    // docs/task4-attention.md (section 3). Tips:
+    //   - m and l belong to the whole warp: all 32 lanes must end with the same
+    //     values. The warp reductions from task 2 give every lane the tile's
+    //     max or sum.
+    //   - Rescale what was summed so far before you add this tile.
+    //   - Also set p (see its comment above the blank); 4.5 needs it.
+    //   - While no key has been visible, the max is -INFINITY; then skip the
+    //     update and leave p = 0.
     // YOUR CODE HERE
     // ============================================================
 
     // ======================== BLANK 4.5 =========================
-    // Add this tile to the output: for every key r of the tile, each lane adds
-    // p_r * v_tile[r][lane + c * 32] to acc[c] (c < dims). p_r lives in lane r;
-    // __shfl_sync(FULL_MASK, p, r) hands it to every lane.
+    // Add this tile's values, weighted by p, to acc. This lane owns output dims
+    // lane, lane + 32, ... (acc[0], acc[1], ...), but the p of key r sits in
+    // lane r. A warp shuffle can hand one lane's value to every lane; all 32
+    // lanes must take part in it.
     // YOUR CODE HERE
     // ============================================================
 

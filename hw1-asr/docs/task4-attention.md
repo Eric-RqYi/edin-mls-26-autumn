@@ -1,129 +1,240 @@
-# Task 4: attention with an online softmax
+# Task 4: attention
 
 File: `csrc/task4_attention.cu`. Test: `make test4`. Model check: `./run.sh` (all four tasks).
 
-This task puts the earlier ones together: dot products as in the GEMM, a tile of data shared by a block through shared memory, and the warp reductions and the `MaxSum` idea from task 2. The result works like FlashAttention: it never writes the attention scores to GPU memory.
+This is the last and largest task, and it reuses what you built before: dot products as in the GEMM, a tile that a block shares through shared memory, and the warp reductions and `MaxSum` from task 2. Read the sections in order; each one adds one idea, and section 7 gives tips for every blank.
 
-## What attention computes
+## 1. What attention computes
 
-For one query vector `q` (one position, one head) and the key and value vectors `k_j`, `v_j` of the same head (`j = 0 .. seq_k-1`, each `head_dim` long):
+In attention, every position of the sequence collects information from the other positions. The linear layers give each position three vectors of `head_dim` numbers:
 
-```
-s_j = (q . k_j) * scale              scale = 1 / sqrt(head_dim)
-p_j = exp(s_j - max s) / sum_i exp(s_i - max s)          (softmax)
-out = sum_j p_j * v_j                a vector of head_dim numbers
-```
+- the query `q`: what this position is looking for
+- the key `k`: what this position offers to the others
+- the value `v`: what it passes on when it is chosen
 
-The output is an average of the value vectors, weighted by how well each key matches the query. Every position of every head does this: in one encoder layer that is 20 heads x 1500 queries, each against 1500 keys.
-
-## Why not compute the scores first
-
-The direct way is three kernels: compute all scores into a `[seq_q, seq_k]` matrix per head, softmax each row, multiply by V. For one encoder layer, that matrix is 20 x 1500 x 1500 floats, 180 MB, written once and read twice, although every score is needed only briefly. Its size grows with the square of the sequence length: at 15,000 positions it would be 18 GB per layer.
-
-Instead, each query walks over the keys in tiles of 32 and keeps three running values:
+For one query and the keys and values `j = 0 .. seq_k-1` of the same head:
 
 ```
-m    the largest score seen so far
-l    sum of exp(s_j - m) over the keys seen so far
-acc  sum of exp(s_j - m) * v_j over the keys seen so far     (head_dim numbers)
++----------------------+     +----------------------+     +----------------------+
+| scores               |     | softmax              |     | weighted average     |
+| s_j = (q . k_j)      | --> | p_j = exp(s_j) / sum | --> | out = sum of p_j v_j |
+|       * scale        |     | (the p_j add to 1)   |     |                      |
++----------------------+     +----------------------+     +----------------------+
 ```
 
-`m` and `l` are the `MaxSum` of task 2; `acc` is new. When a tile raises the maximum from `m` to `m_new`, everything summed so far was computed relative to the old `m` and has to be multiplied by `corr = exp(m - m_new)`. After the last tile, `out = acc / l`.
+`q . k_j` is the dot product: multiply the two vectors element by element and add the results up. A large score means that the key fits the query well. `scale = 1 / sqrt(head_dim)` keeps the scores in a sensible range.
 
-A small example with 1-number values, four keys in two tiles of two:
-
-```
-scores s:  1   2  |  3   0          values v:  10  20  |  30  40
-
-tile 1:  m = 2,  l = e^-1 + e^0 = 1.368,  acc = 10 e^-1 + 20 e^0 = 23.68
-tile 2:  m_new = 3,  corr = e^(2-3) = 0.368
-         p = [e^0, e^-3] = [1, 0.050]
-         l   = 1.368 * 0.368 + (1 + 0.050)      = 1.553
-         acc = 23.68 * 0.368 + (30 * 1 + 40 * 0.050) = 40.70
-out = 40.70 / 1.553 = 26.21
-```
-
-Computing the softmax of all four scores directly gives the same 26.21.
-
-## How the work is split
+A small example with `head_dim = 2`, three keys, one-number values, and the scale left out:
 
 ```
-grid:   (ceil(seq_q / ATTN_WARPS), num_heads, batch)
-block:  ATTN_WARPS = 4 warps = 128 threads, for 4 neighbouring queries of one head
-warp w: query qi = blockIdx.x * 4 + w
+q = [1, 0]
 
+key j    k_j       s_j = q . k_j    exp(s_j)    p_j      v_j
+  0      [ 1, 0]         1           2.718      0.665     10
+  1      [ 0, 1]         0           1.000      0.245     20
+  2      [-1, 0]        -1           0.368      0.090     30
+                                     sum 4.086
+
+out = 0.665 x 10 + 0.245 x 20 + 0.090 x 30 = 14.25
+```
+
+Key 0 fits best, so its value counts most. In the model each `v_j` is a vector of `head_dim` numbers, and so is `out`: every element of `out` is the same weighted average, taken over that element of the values.
+
+As in task 2, the real softmax subtracts the largest score before calling `exp`, so that `exp` cannot overflow. The probabilities do not change.
+
+## 2. Why the kernel works in tiles
+
+The direct way takes three kernels: write all scores into a `[seq_q, seq_k]` matrix for each head, softmax each row, then multiply by the values. For one encoder layer that matrix is 20 x 1500 x 1500 floats, 180 MB, written once and read twice, although each score is needed only for a moment. Its size grows with the square of the sequence length.
+
+Your kernel never stores the scores. Each query reads the keys 32 at a time (a tile), and keeps only a short running summary of what it has seen.
+
+## 3. The running summary
+
+A query keeps three running values:
+
+```
+m     the largest score seen so far
+l     the sum of exp(s_j - m) over the keys seen so far
+acc   the sum of exp(s_j - m) * v_j over the keys seen so far    (head_dim numbers)
+```
+
+`m` and `l` are the `MaxSum` of task 2; `acc` is new. When a tile brings a larger maximum `m_new`, everything already in `l` and `acc` was computed with the old `m` and is too large. Multiplying it by `corr = exp(m - m_new)`, a number between 0 and 1, fixes that. After the last tile, `out = acc / l`.
+
+Here it is by hand, with four keys in two tiles of two and one-number values:
+
+```
+scores s:   1    2   |   3    0        values v:   10   20   |   30   40
+            tile 1   |   tile 2
+
+after tile 1:  m   = 2
+               l   = exp(1-2) + exp(2-2)            = 0.368 + 1         = 1.368
+               acc = 10 exp(1-2) + 20 exp(2-2)      = 3.68 + 20         = 23.68
+
+tile 2:        m_new = 3, so corr = exp(2-3)        = 0.368
+               exp(s - m_new) for the tile          = 1 and 0.050
+
+after tile 2:  l   = 1.368 x 0.368 + (1 + 0.050)                        = 1.553
+               acc = 23.68 x 0.368 + (30 x 1 + 40 x 0.050)              = 40.70
+               m   = 3
+
+out = acc / l = 40.70 / 1.553 = 26.21
+```
+
+The softmax of all four scores at once gives the same 26.21. If this is new to you, check it with a calculator before you write any code: blank 4.4 is exactly this calculation.
+
+## 4. Who does what
+
+A block handles 4 neighbouring queries of one head, one query per warp:
+
+```
+grid: one block for every 4 queries, of every head, of every batch element
+
+one block = 4 warps = 128 threads
++--------------+--------------+--------------+--------------+
+| warp 0       | warp 1       | warp 2       | warp 3       |
+| query 4b     | query 4b+1   | query 4b+2   | query 4b+3   |    b = blockIdx.x
++--------------+--------------+--------------+--------------+
+| shared memory: the current tile of 32 keys and 32 values  |
++-----------------------------------------------------------+
+```
+
+The four warps share each tile, so every key and value is loaded from global memory once for four queries instead of once for each query.
+
+Inside a warp, a lane has two jobs, one after the other:
+
+```
+scoring (4.3)         lane 0     lane 1     ...   lane 31
+                      key j0     key j0+1         key j0+31          one dot product each
+
+adding up (4.5)       lane 0     lane 1     ...   lane 31
+                      dims 0,    dims 1,          dims 31,           head_dim = 128:
+                      32, 64, 96 33, 65, 97       63, 95, 127        4 dims per lane
+```
+
+In between, the probabilities have to move between lanes: after scoring, the `p` of key `j0 + r` is in lane `r`, but for adding up, every lane needs all 32 of them.
+
+One pass of the tile loop:
+
+```
 for each tile of 32 keys (j0 = 0, 32, 64, ...):
-    all 128 threads   copy keys and values j0 .. j0+31 into shared memory      (4.2)
-    __syncthreads()
-    each warp, for its own query:
-        lane r        score s of key j0 + r                                     (4.3)
-        the warp      online softmax update of m, l, acc                         (4.4)
-        lane r        acc for output dims r, r+32, r+64, r+96                   (4.5)
-    __syncthreads()   before the next tile overwrites shared memory
-each warp writes acc / l                                                         (4.6)
+    +--------------------------------------------+
+    | 4.2  copy the tile into shared memory,     |   all 128 threads
+    |      then wait until everyone is done      |
+    +--------------------------------------------+
+    | 4.3  one score per lane                    |   each warp
+    +--------------------------------------------+
+    | 4.4  update m, l and acc                   |   each warp
+    +--------------------------------------------+
+    | 4.5  add the tile's values to acc          |   each warp
+    +--------------------------------------------+
+    |      wait again (given)                    |   all 128 threads
+    +--------------------------------------------+
+after the loop:
+    4.6  out = acc / l
 ```
 
-The four warps of a block share each K/V tile, so each key and value is loaded from global memory once per four queries instead of once per query.
+## 5. Where the data is
 
-A lane has two jobs. While scoring, lane `r` owns key `j0 + r` of the tile and computes one full dot product with the query. While accumulating, lane `r` owns output dimensions `r`, `r + 32`, ... and adds up the contributions of all 32 keys. In between, the probabilities have to move between lanes: `p` of key `j0 + r` sits in lane `r`, and every lane needs all 32 of them. `__shfl_sync(FULL_MASK, p, r)` returns lane `r`'s `p` to every lane, a broadcast through registers.
+`q` and `out` are `[batch, seq_q, num_heads, head_dim]`; `k` and `v` are `[batch, seq_k, num_kv_heads, head_dim]`, as the linear layers produce them. The given code sets up two pointers for you: key `j` of the right head starts at `k_head + j * kv_stride`, and value `j` at `v_head + j * kv_stride`. Each warp's query is already copied into shared memory as `qv`, multiplied by `scale`.
 
-### Layout and pointers
-
-`q` and `out` are `[batch, seq_q, num_heads, head_dim]` and `k`, `v` are `[batch, seq_k, num_kv_heads, head_dim]`, as the linear layers produce them. The kernel sets up `k_head` and `v_head` for you: key `j` of the right head starts at `k_head + j * kv_stride`, with `kv_stride = num_kv_heads * head_dim`, the distance from one token to the next. Each warp's query is copied to shared memory (`qv`), already multiplied by `scale`.
-
-### Shared memory
-
-The kernel uses dynamic shared memory: one `extern __shared__ float smem[]` array whose size the launcher passes as the third launch parameter. It is cut into three parts:
+The kernel's shared memory is one array, `smem`, cut into three parts:
 
 ```
-k_tile  [32][head_dim + 1]      keys of the current tile
-v_tile  [32][head_dim]          values of the current tile
-q_all   [ATTN_WARPS][head_dim]  the queries of the block's warps
++-------------------------------+---------------------------+---------------------+
+| k_tile                        | v_tile                    | q_all               |
+| 32 rows of head_dim + 1       | 32 rows of head_dim       | 4 rows of head_dim  |
++-------------------------------+---------------------------+---------------------+
 ```
 
-While scoring, lane `r` reads `k_tile[r * k_pitch + d]`: all lanes read the same `d` of different rows. The `+1` in `k_pitch = head_dim + 1` moves each row to a different bank, for the same reason as the `+1` in task 3.
+Row `r` of `k_tile` starts at `k_tile + r * k_pitch`, with `k_pitch = head_dim + 1`. The extra float at the end of each row is padding against bank conflicts, for the same reason as the `+1` in task 3. Rows of `v_tile` have no padding.
+
+## 6. Two special cases
 
 ### Grouped-query attention (GQA)
 
-The decoder has 16 query heads and 4 key/value heads. Query heads 0 to 3 use key/value head 0, heads 4 to 7 use head 1, and so on. In the encoder both counts are 20, so every head uses its own.
+The text decoder has 16 query heads but only 4 key/value heads, and groups of neighbouring query heads share one:
+
+```
+query head:   0  1  2  3 |  4  5  6  7 |  8  9 10 11 | 12 13 14 15
+K/V head:          0     |      1      |      2      |      3
+```
+
+In the audio encoder both counts are 20, so every query head has its own key/value head.
 
 ### Causal masking
 
-In the decoder a query may only look at keys at or before its own position. Query `qi` is at position `qi + (seq_k - seq_q)` of the key sequence; in this model `seq_q == seq_k`, but the test also has cases with fewer queries than keys, as in generation with a KV cache. The kernel computes `last_key` for each warp: keys after it get the score `-INFINITY`, which becomes `exp(-inf) = 0`.
+In the decoder, a token may only look at itself and the tokens before it:
 
-The tile loop runs to `block_last_key`, the last key any query of the block needs, and not to each warp's own `last_key`. All threads of a block must run the same number of iterations, because the loop contains `__syncthreads()`. Tiles past the last key are skipped altogether, which halves the work in causal attention.
+```
+             key 0  1  2  3
+query 0          x  .  .  .        x  may look
+query 1          x  x  .  .        .  masked: score -INFINITY, so p = 0
+query 2          x  x  x  .
+query 3          x  x  x  x
+```
 
-## The blanks
+The tests also have cases with fewer queries than keys, as in generation with a cache. The queries are then the last positions of the sequence. The given code works out `last_key`, the last key this warp's query may see, so you only compare against it.
 
-4.1 GQA: compute `kv_h` from `h`, `num_heads` and `num_kv_heads`.
+The tile loop runs up to `block_last_key`, the last key that any query of the block needs, and not up to each warp's own `last_key`. Every thread of a block has to go round the loop the same number of times, because the loop contains `__syncthreads()`.
 
-4.2 Copy keys and values `j0 .. j0+31` into `k_tile` and `v_tile`, using all threads of the block, then wait. There are `32 * head_dim` elements of each; give thread `t` the elements `t, t + blockDim.x, ...` and turn each element number into a row `r` (key `j0 + r`) and a column `d`. Neighbouring threads then read neighbouring `d`, which is coalesced. Store 0 for keys at or past `seq_k`, so the last tile is never read out of bounds.
+## 7. The blanks
 
-4.3 If key `j0 + lane` is visible to this warp's query, compute its score: the dot product of `qv` with row `lane` of `k_tile`. Otherwise leave `s = -INFINITY`.
+### 4.1 Which K/V head
 
-4.4 The online softmax update. The comment in the code lists the steps. Use `warp_reduce_max` and `warp_reduce_sum` from task 2: every lane needs the maximum and the sum over the tile's 32 scores.
+How many query heads share one K/V head? Check your formula against the picture in section 6: head 5 must give 1 and head 15 must give 3, and in the encoder (20 and 20) head 7 must give 7.
 
-<details><summary>Hint for 4.4</summary>
+### 4.2 Copy the tile
 
-If no lane has a visible key and nothing was seen before, `m_new` is `-INFINITY` and `exp(m - m_new)` is `exp(nan)`. Skip the update in that case and leave `p = 0`. The condition is the same in all 32 lanes (they all hold the same `m_new`), so calling `warp_reduce_sum` inside the `if` is safe. In this model that case only happens for the spare warps of the last block, whose `last_key` is -1.
+- There are `KV_TILE * head_dim` numbers to copy for the keys, the same for the values, and `blockDim.x` threads. Number the tile's elements `e = 0, 1, 2, ...` row by row, and let thread `t` take `e = t, t + blockDim.x, t + 2 * blockDim.x, ...`, like the column loop in task 2.
+- Turn `e` into a row `r` (key `j0 + r`) and a column `d` with a division and a remainder, as in task 1. Neighbouring threads then read neighbouring `d`, which is a coalesced read.
+- In the last tile, key `j0 + r` may be past the end of the sequence. Store 0 for it.
+- Mind the different row lengths: `k_pitch` for `k_tile`, `head_dim` for `v_tile`.
+- No warp may start reading the tile before every thread has written its part.
+
+### 4.3 One score per lane
+
+- This lane scores key `j0 + lane`. Compare it with `last_key` to see whether the key is visible.
+- The score is a dot product: a loop over `d`, reading `qv` and this lane's row of `k_tile`. `qv` is already scaled.
+- For a key that is not visible, leave `s` at `-INFINITY`.
+
+### 4.4 Update m, l and acc
+
+- Redo the example of section 3 and mark which values belong to one lane (its score `s`, its `p`) and which belong to the whole warp (`m`, `l`, the maximum and the sum over the tile). Warp values must be equal in all 32 lanes; `warp_reduce_max` and `warp_reduce_sum` from task 2 give every lane the same result.
+- The order matters: shrink the old `l` and `acc` with `corr` before you add the new tile.
+- `acc` has `dims` entries in each lane. See "The acc array" below for how to loop over it.
+
+<details><summary>One more tip for 4.4</summary>
+
+If no lane has a visible key and nothing was seen before, the new maximum is `-INFINITY`, and `exp(m - m_new)` becomes `exp(-inf - (-inf))`, which is `nan`. Skip the update in that case and leave `p = 0`. All 32 lanes hold the same maximum, so they all make the same choice, and calling `warp_reduce_sum` inside that `if` is safe.
 
 </details>
 
-4.5 Add the tile to `acc`: for each key `r = 0 .. 31` of the tile, get `p_r` with `__shfl_sync`, then `acc[c] += p_r * v_tile[r][lane + 32 c]` for each `c < dims`. All 32 lanes must call `__shfl_sync`.
+### 4.5 Add the tile's values
 
-4.6 Write `acc / l` to this warp's output row, if the warp has a real query.
+- Lane `lane` owns output dims `lane`, `lane + 32`, ...; `acc[c]` holds dim `lane + 32 * c`.
+- For each of the 32 keys of the tile, every lane needs that key's `p`, which sits in one lane only. `__shfl_sync(FULL_MASK, value, src)` returns lane `src`'s `value` to every lane that calls it.
+- All 32 lanes must call `__shfl_sync`, including lanes whose own key was masked.
+- The value of key `r` for one of this lane's dims is in row `r` of `v_tile`.
 
-### About the `acc` array
+### 4.6 Write the output
 
-`acc` holds `dims = head_dim / 32` numbers per lane: 2 in the encoder, 4 in the decoder. Its size must be a compile-time constant, so it is declared with the maximum, 4. Loop over it as the given code does:
+- Only a warp with a real query (`active`) writes.
+- `out` has the same layout as `q`; the given code that finds `q_row` shows how to find the row.
+- Each lane writes its own dims, divided by `l`.
+
+### The acc array
+
+`acc` holds `dims = head_dim / 32` numbers per lane: 2 in the encoder, 4 in the decoder. Its size must be a constant the compiler knows, so it is declared with the maximum, 4. Loop over it like this:
 
 ```cuda
 #pragma unroll
 for (int c = 0; c < MAX_DIMS_PER_LANE; ++c)
-  if (c < dims) acc[c] *= corr;
+  if (c < dims) {
+    // use acc[c] here
+  }
 ```
 
-With a constant loop count and `#pragma unroll`, the compiler turns the loop into four plain statements and keeps `acc` in registers. With `c < dims` as the loop condition, the compiler cannot tell which element `acc[c]` is at compile time and may put the array in slow local memory instead.
+With a constant loop count and `#pragma unroll`, the compiler turns the loop into four separate statements and keeps `acc` in registers. If you write `c < dims` as the loop condition instead, the compiler cannot tell which element `acc[c]` is, and it may put the whole array in slow local memory.
 
 ## Test
 
