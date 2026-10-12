@@ -2,7 +2,7 @@
 
 File: `csrc/task4_attention.cu`. Test: `make test4`. Model check: `./run.sh` (all four tasks).
 
-This is the last and largest task, and it reuses what you built before: dot products as in the GEMM, a tile that a block shares through shared memory, and the warp reductions and `MaxSum` from task 2. Read the sections in order; each one adds one idea, and section 7 gives tips for every blank.
+This is the last and largest task, and it reuses what you built before: dot products as in the GEMM, a tile that a block shares through shared memory, and the warp reductions and `MaxSum` from task 2. Read the sections in order; each one adds one idea, and section 7 lists the blanks.
 
 ## 1. What attention computes
 
@@ -80,7 +80,7 @@ after tile 2:  l   = 1.368 x 0.368 + (1 + 0.050)                        = 1.553
 out = acc / l = 40.70 / 1.553 = 26.21
 ```
 
-The softmax of all four scores at once gives the same 26.21. If this is new to you, check it with a calculator before you write any code: blank 4.4 is exactly this calculation.
+The softmax of all four scores at once gives the same 26.21. If this is new to you, check it with a calculator.
 
 ## 4. Who does what
 
@@ -173,68 +173,20 @@ query 2          x  x  x  .
 query 3          x  x  x  x
 ```
 
-The tests also have cases with fewer queries than keys, as in generation with a cache. The queries are then the last positions of the sequence. The given code works out `last_key`, the last key this warp's query may see, so you only compare against it.
+The tests also have cases with fewer queries than keys, as in generation with a cache. The queries are then the last positions of the sequence. The given code works out `last_key`, the last key this warp's query may see.
 
 The tile loop runs up to `block_last_key`, the last key that any query of the block needs, and not up to each warp's own `last_key`. Every thread of a block has to go round the loop the same number of times, because the loop contains `__syncthreads()`.
 
 ## 7. The blanks
 
-### 4.1 Which K/V head
-
-How many query heads share one K/V head? Check your formula against the picture in section 6: head 5 must give 1 and head 15 must give 3, and in the encoder (20 and 20) head 7 must give 7.
-
-### 4.2 Copy the tile
-
-- There are `KV_TILE * head_dim` numbers to copy for the keys, the same for the values, and `blockDim.x` threads. Number the tile's elements `e = 0, 1, 2, ...` row by row, and let thread `t` take `e = t, t + blockDim.x, t + 2 * blockDim.x, ...`, like the column loop in task 2.
-- Turn `e` into a row `r` (key `j0 + r`) and a column `d` with a division and a remainder, as in task 1. Neighbouring threads then read neighbouring `d`, which is a coalesced read.
-- In the last tile, key `j0 + r` may be past the end of the sequence. Store 0 for it.
-- Mind the different row lengths: `k_pitch` for `k_tile`, `head_dim` for `v_tile`.
-- No warp may start reading the tile before every thread has written its part.
-
-### 4.3 One score per lane
-
-- This lane scores key `j0 + lane`. Compare it with `last_key` to see whether the key is visible.
-- The score is a dot product: a loop over `d`, reading `qv` and this lane's row of `k_tile`. `qv` is already scaled.
-- For a key that is not visible, leave `s` at `-INFINITY`.
-
-### 4.4 Update m, l and acc
-
-- Redo the example of section 3 and mark which values belong to one lane (its score `s`, its `p`) and which belong to the whole warp (`m`, `l`, the maximum and the sum over the tile). Warp values must be equal in all 32 lanes; `warp_reduce_max` and `warp_reduce_sum` from task 2 give every lane the same result.
-- The order matters: shrink the old `l` and `acc` with `corr` before you add the new tile.
-- `acc` has `dims` entries in each lane. See "The acc array" below for how to loop over it.
-
-<details><summary>One more tip for 4.4</summary>
-
-If no lane has a visible key and nothing was seen before, the new maximum is `-INFINITY`, and `exp(m - m_new)` becomes `exp(-inf - (-inf))`, which is `nan`. Skip the update in that case and leave `p = 0`. All 32 lanes hold the same maximum, so they all make the same choice, and calling `warp_reduce_sum` inside that `if` is safe.
-
-</details>
-
-### 4.5 Add the tile's values
-
-- Lane `lane` owns output dims `lane`, `lane + 32`, ...; `acc[c]` holds dim `lane + 32 * c`.
-- For each of the 32 keys of the tile, every lane needs that key's `p`, which sits in one lane only. `__shfl_sync(FULL_MASK, value, src)` returns lane `src`'s `value` to every lane that calls it.
-- All 32 lanes must call `__shfl_sync`, including lanes whose own key was masked.
-- The value of key `r` for one of this lane's dims is in row `r` of `v_tile`.
-
-### 4.6 Write the output
-
-- Only a warp with a real query (`active`) writes.
-- `out` has the same layout as `q`; the given code that finds `q_row` shows how to find the row.
-- Each lane writes its own dims, divided by `l`.
-
-### The acc array
-
-`acc` holds `dims = head_dim / 32` numbers per lane: 2 in the encoder, 4 in the decoder. Its size must be a constant the compiler knows, so it is declared with the maximum, 4. Loop over it like this:
-
-```cuda
-#pragma unroll
-for (int c = 0; c < MAX_DIMS_PER_LANE; ++c)
-  if (c < dims) {
-    // use acc[c] here
-  }
-```
-
-With a constant loop count and `#pragma unroll`, the compiler turns the loop into four separate statements and keeps `acc` in registers. If you write `c < dims` as the loop condition instead, the compiler cannot tell which element `acc[c]` is, and it may put the whole array in slow local memory.
+| Blank | What it must do |
+|-------|-----------------|
+| 4.1 | Set `kv_h`, the K/V head that query head `h` reads. |
+| 4.2 | Copy keys and values `j0 .. j0+31` of this head into `k_tile` and `v_tile`, with 0 for keys past `seq_k`. All threads of the block take part. |
+| 4.3 | Set `s`, this lane's score for key `j0 + lane`, if the query may see that key. |
+| 4.4 | Update `m`, `l` and `acc` with this tile, as in section 3, and set `p`. |
+| 4.5 | Add the tile's values, weighted by `p`, to `acc`. |
+| 4.6 | Write `acc / l` to `out`. |
 
 ## Test
 
@@ -248,17 +200,10 @@ The CPU checks every query of the small cases and about 300 queries of the large
 
 Then run `./run.sh`. With all four tasks on your kernels, the transcription should pass.
 
-Common mistakes:
-
-- Only one `__syncthreads()` in the tile loop. The second one (after 4.5) is given; the one after the copy in 4.2 is yours.
-- Comparing `j0 + lane` with `seq_k` instead of `last_key` in 4.3. Non-causal cases pass and causal ones fail.
-- Forgetting to rescale `acc` by `corr`, or rescaling it after adding the new tile.
-- Calling `__shfl_sync` or `warp_reduce_*` inside an `if` that only some lanes of the warp enter.
-
 ## Try this
 
 1. Change `ATTN_WARPS` to 1, 2, 8 and 16 and time the audio encoder case. How does the number of times each key is loaded from global memory change, and how does the time follow?
-2. Set `k_pitch = head_dim` (no `+1`) and time the encoder case again. Work out which banks the 32 lanes hit when they read `k_tile[lane * k_pitch + d]` with `head_dim = 64`.
+2. Set `k_pitch = head_dim` (no `+1`) and time the encoder case again. With `head_dim = 64`, work out which banks the 32 lanes hit when each lane reads element `d` of its own row of `k_tile`.
 3. Compare your attention with PyTorch's: `./run.sh --cuda task1,task2,task3 --profile` runs attention with PyTorch and everything else on your kernels. PyTorch does build the full score matrix, but it computes `Q K^T` and `P V` with cuBLAS. Compare the attention line of both profiles on your GPU, and think about which parts of your kernel do the most work per number loaded from shared memory.
 
 ## Questions for the report
@@ -267,3 +212,4 @@ Common mistakes:
 2. Why must all threads of a block run the same number of tile iterations? What could go wrong if each warp stopped at its own `last_key`?
 3. What is `corr` when a tile does not raise the maximum? When can `m_new` be `-INFINITY`?
 4. With `ATTN_WARPS = 4`, how many times is each key of one encoder head loaded from global memory per layer? What limits how large `ATTN_WARPS` can usefully be?
+5. `acc` is declared with `MAX_DIMS_PER_LANE` entries, although only `dims` of them are used. Why? Where can the compiler keep `acc` when the loops over it have a fixed length, and where when they do not?

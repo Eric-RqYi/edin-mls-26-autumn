@@ -32,7 +32,7 @@ row 3: token 1, head 1
 ...
 ```
 
-So row `r` belongs to the token at position `(r / num_heads) % seq_len`. The `% seq_len` matters when `batch > 1`: the positions start again at 0 for every sequence in the batch.
+With `batch > 1`, the positions start again at 0 for every sequence in the batch.
 
 `k` has the same layout with `num_k_heads` heads. In the decoder `q` has 16 heads and `k` has 4.
 
@@ -51,33 +51,12 @@ The launcher starts `ceil(total_pairs / 256)` blocks of `ROPE_THREADS = 256` thr
 
 The variables each blank sets are declared just above it, so the file compiles while blanks are empty.
 
-### 1.1: thread index and bounds check
-
-Compute the global index of the thread and stop threads that have no pair. The launcher rounds the number of threads up to a multiple of the block size, so the last block has spare threads.
-
-<details><summary>Hint</summary>
-
-Exactly as in `vector_add`: `blockIdx.x * blockDim.x + threadIdx.x`, and `return` if it is not smaller than `q_pairs + k_pairs`. An early `return` is fine here because this kernel has no `__syncthreads()`.
-
-</details>
-
-### 1.2: q or k?
-
-Threads with `idx < q_pairs` work on `q`. The others work on `k`: point `x` at `k`, use `num_k_heads`, and subtract `q_pairs` so `idx` counts the pairs of `k` from 0.
-
-### 1.3: row, pair and position
-
-Split `idx` into the row and the pair inside the row (each row holds `half` pairs), then get the token position from the row.
-
-<details><summary>Hint</summary>
-
-Division and remainder by `half` give the row and the pair. For the position, use the formula from the layout section with the `num_heads` of the tensor you are working on.
-
-</details>
-
-### 1.4: rotate
-
-`v` already points at the start of the row. Read the pair, compute the angle, and write both rotated values back. Read both values before you write either one: `b'` needs the old `a`.
+| Blank | What it must do |
+|-------|-----------------|
+| 1.1 | Set `idx` to the thread's global index. Threads without a pair do nothing. |
+| 1.2 | Threads past the pairs of `q` work on `k`: `x`, `num_heads` and `idx` must then describe `k`. |
+| 1.3 | Set `row`, the pair `i` inside the row, and the token position `pos`. |
+| 1.4 | Rotate the pair in place. |
 
 ## Test
 
@@ -90,13 +69,6 @@ Every case prints one line. When the kernel is right, the line says `PASS` and s
 The GB/s column is the number of bytes the kernel reads and writes, divided by its time. RoPE does very little arithmetic per byte, so the best it can do is move its data at the speed of GPU memory; the "peak" is that speed. A kernel like this is called memory bound.
 
 Then run `./run.sh --cuda task1`; the transcription should still pass.
-
-Common mistakes:
-
-- Using `num_q_heads` for `k`. The decoder test catches this (16 heads against 4), the encoder test does not.
-- Forgetting `% seq_len`. Only the cases with `batch > 1` catch this.
-- Rotating `rotary_dim` pairs instead of `rotary_dim / 2`.
-- Writing `v[i]` before reading it for `b'`.
 
 ## Try this
 

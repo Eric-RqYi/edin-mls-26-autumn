@@ -41,10 +41,7 @@ __global__ void rmsnorm_kernel(const float* x, const float* weight, float* y, in
   float* yr = y + static_cast<size_t>(blockIdx.x) * cols;
 
   // ======================== BLANK 2.5 =========================
-  // Same shape as the LayerNorm example, with one reduction instead of two:
-  //   1. each thread adds up x*x over its columns
-  //   2. block_reduce_sum gives the row total; inv_rms = rsqrtf(total / cols + eps)
-  //   3. each thread writes y = x * inv_rms * weight for its columns
+  // RMSNorm of this row: y = x / sqrt(mean(x^2) + eps) * weight.
   // YOUR CODE HERE
   // ============================================================
 }
@@ -59,17 +56,13 @@ __global__ void softmax_kernel(const float* x, float* y, int cols) {
   float row_max = 0.0f;  // max of the whole row
   float row_sum = 1.0f;  // sum of exp(x - row_max) over the whole row
   // ======================== BLANK 2.6 =========================
-  // Pass 1 (reads the row once):
-  //   - each thread builds a MaxSum of its own columns: start from {-INFINITY, 0}
-  //     and merge in {x[c], 1.0f} for every column c it owns
-  //   - row_max = block-wide max of the threads' m
-  //   - row_sum = block-wide sum of the threads' l, each rescaled from its own m
-  //     to row_max (multiply by expf(m - row_max))
+  // Pass 1: set row_max and row_sum (the sum of exp(x - row_max) over the row),
+  // reading x only once, with MaxSum.
   // YOUR CODE HERE
   // ============================================================
 
   // ======================== BLANK 2.7 =========================
-  // Pass 2: write y = exp(x - row_max) / row_sum for every column the thread owns.
+  // Pass 2: y = exp(x - row_max) / row_sum.
   // YOUR CODE HERE
   // ============================================================
 }

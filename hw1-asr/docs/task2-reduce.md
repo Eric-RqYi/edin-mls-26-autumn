@@ -72,41 +72,21 @@ for (int c = threadIdx.x; c < cols; c += blockDim.x) { ... }
 
 With 256 threads, thread 0 handles columns 0, 256, 512, ..., and thread 1 handles 1, 257, 513, .... In each round of the loop, the 256 threads read 256 neighbouring floats, which the GPU fetches as a few wide memory transactions (a coalesced access). The loop works for any number of columns, including fewer than 256.
 
-Read the LayerNorm kernel first; it is complete and has exactly this shape. Your RMSNorm has the same shape with one reduction instead of two.
+The LayerNorm kernel in the file is complete and has exactly this shape.
 
 ## The blanks
 
-### Part A (`task2_reduce.cuh`)
+| Blank | File | What it must do |
+|-------|------|-----------------|
+| 2.1 | `task2_reduce.cuh` | `warp_reduce_sum`: one step of the butterfly. |
+| 2.2 | `task2_reduce.cuh` | `warp_reduce_max`: the same for the maximum. |
+| 2.3 | `task2_reduce.cuh` | `block_reduce_max`: the maximum over the whole block. |
+| 2.4 | `task2_reduce.cuh` | `maxsum_merge`: the merge rule above. Two empty summaries give an empty summary, not `nan`. |
+| 2.5 | `task2_reduce.cu` | `rmsnorm_kernel`: `y = x / sqrt(mean(x^2) + eps) * weight`. |
+| 2.6 | `task2_reduce.cu` | Softmax, first pass: `row_max` and `row_sum` (the sum of `exp(x - row_max)`), reading the row once. |
+| 2.7 | `task2_reduce.cu` | Softmax, second pass: `y = exp(x - row_max) / row_sum`. |
 
-2.1 `warp_reduce_sum`: one line in the loop.
-
-2.2 `warp_reduce_max`: the same with `fmaxf`.
-
-2.3 `block_reduce_max`: the four steps of `block_reduce_sum`, using `warp_reduce_max`.
-
-<details><summary>Hint for 2.3</summary>
-
-In step 3, lanes `>= num_warps` have no warp result to load. For a sum they load 0, which does not change the sum. For a max you need a value that can never be the maximum.
-
-</details>
-
-2.4 `maxsum_merge`: the merge rule above. If both `m` are `-INFINITY` (two empty summaries, or rows of masked scores in task 4), `exp(-inf - (-inf))` is `exp(nan)`; return `{-INFINITY, 0}` in that case.
-
-### Part B (`task2_reduce.cu`)
-
-2.5 `rmsnorm_kernel`: `y = x / sqrt(mean(x^2) + eps) * weight`. Follow the LayerNorm example: accumulate `x * x` over your columns, reduce, compute `rsqrtf(total / cols + eps)` (`rsqrtf(a)` is `1 / sqrt(a)` in one instruction), write.
-
-2.6 softmax, first pass: each thread builds the `MaxSum` of its own columns, starting from `{-INFINITY, 0.0f}` and merging in `{x[c], 1.0f}` for each column. Then the block combines the threads' summaries: `row_max` is the block-wide max of the `m`s, and `row_sum` is the block-wide sum of each thread's `l * expf(m - row_max)`.
-
-<details><summary>Hint for 2.6</summary>
-
-The block-wide combine is two calls: `block_reduce_max` on `st.m`, then `block_reduce_sum` on the rescaled `st.l`. A thread with no columns (possible when `cols < blockDim.x`) still has `{-inf, 0}`; check that it contributes 0 to the sum and not `nan`.
-
-</details>
-
-2.7 softmax, second pass: `y = exp(x - row_max) / row_sum`. Multiplying by `1 / row_sum` is cheaper than dividing every element.
-
-Every thread of the block must call `block_reduce_*`, because they contain `__syncthreads()`. Do not put them inside an `if` that only some threads enter.
+`block_reduce_sum` and `block_reduce_max` contain `__syncthreads()`, so every thread of the block must call them.
 
 ## Test
 
@@ -116,14 +96,7 @@ make test2
 
 When every case passes, the test ends with `Task 2 (reductions): ALL PASS`. As in task 1, each line also shows the time and the speed in GB/s.
 
-The LayerNorm cases test your part A, because the given LayerNorm uses `warp_reduce_sum`. If only the LayerNorm cases fail, look at blank 2.1.
-
-Common mistakes:
-
-- Calling `block_reduce_*` from only some threads, which hangs the block or gives garbage.
-- Loading 0 instead of `-INFINITY` for missing warps in `block_reduce_max`. All-negative rows then get a max of 0, and the "all negative" softmax case turns into `nan`.
-- Using `blockDim.x` where you mean the number of warps, `blockDim.x / 32`.
-- In softmax, rescaling `l` by `expf(row_max - m)` instead of `expf(m - row_max)`.
+The LayerNorm cases also test your part A, because the given LayerNorm uses `warp_reduce_sum`.
 
 ## Try this
 

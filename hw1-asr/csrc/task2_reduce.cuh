@@ -15,8 +15,7 @@
 __device__ __forceinline__ float warp_reduce_sum(float v) {
   for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
     // ======================== BLANK 2.1 =========================
-    // Add the value held by the lane whose id differs from yours in bit `offset`.
-    // __shfl_xor_sync(FULL_MASK, v, offset) returns that lane's v.
+    // One step of the butterfly sum (see the guide).
     // YOUR CODE HERE
     // ============================================================
   }
@@ -27,7 +26,7 @@ __device__ __forceinline__ float warp_reduce_sum(float v) {
 __device__ __forceinline__ float warp_reduce_max(float v) {
   for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
     // ======================== BLANK 2.2 =========================
-    // Same as 2.1, with fmaxf instead of +.
+    // The same for the maximum.
     // YOUR CODE HERE
     // ============================================================
   }
@@ -60,8 +59,7 @@ __device__ __forceinline__ float block_reduce_max(float v) {
   const int num_warps = blockDim.x / WARP_SIZE;
 
   // ======================== BLANK 2.3 =========================
-  // Follow the four steps of block_reduce_sum, using warp_reduce_max.
-  // Lanes that have no warp result to load need a value that cannot win a max.
+  // Block-wide maximum, built like block_reduce_sum above.
   // YOUR CODE HERE
   // ============================================================
   return v;
@@ -81,9 +79,8 @@ struct MaxSum {
 __device__ __forceinline__ MaxSum maxsum_merge(MaxSum a, MaxSum b) {
   MaxSum r = {-INFINITY, 0.0f};
   // ======================== BLANK 2.4 =========================
-  // Merge a and b into r: r.m is the larger max, and each l is rescaled to the
-  // new max before adding. If both maxima are -INFINITY, keep r = {-INFINITY, 0}
-  // (exp(-inf - (-inf)) is NaN).
+  // Merge a and b with the rule in the guide. Merging two empty summaries
+  // ({-INFINITY, 0}) must give an empty summary, not NaN.
   // YOUR CODE HERE
   // ============================================================
   return r;

@@ -31,31 +31,26 @@ __global__ void linear_tiled_kernel(const float* x, const float* w, const float*
   float acc = 0.0f;
   for (int k0 = 0; k0 < K; k0 += TILE) {
     // ======================== BLANK 3.1 =========================
-    // Load one element of the x tile: xs[ty][tx] = x[row][k0 + tx].
-    // Store 0 instead if that element is outside x (row >= M or k0 + tx >= K).
+    // Load this thread's element of the x tile into xs. Use 0 outside x.
     // YOUR CODE HERE
     // ============================================================
 
     // ======================== BLANK 3.2 =========================
-    // Load one element of the w tile, so that afterwards
-    //     ws[i][j] = w[blockIdx.x * TILE + i][k0 + j]    for all i, j < TILE
-    // (rows of w that this block's output columns need). Pick which thread loads
-    // which element so that threads with consecutive tx read consecutive addresses.
-    // Store 0 outside w (row >= N or column >= K).
+    // Load this thread's element of the w tile, so that ws[n][k] holds
+    // w[blockIdx.x * TILE + n][k0 + k]. Use 0 outside w. Threads with consecutive
+    // tx must read consecutive addresses of w.
     // YOUR CODE HERE
     // ============================================================
 
     // ======================== BLANK 3.3 =========================
-    // Wait for the whole tile, add this tile's contribution to acc
-    // (xs[ty][q] times the matching element of ws, for q = 0 .. TILE-1),
-    // then wait again before the next iteration overwrites the tile.
+    // Add this K step's contribution to acc.
     // YOUR CODE HERE
     // ============================================================
   }
 
   // ======================== BLANK 3.4 =========================
-  // Epilogue: if (row, col) is inside y, add bias[col] (bias may be nullptr),
-  // apply gelu() when act == ACT_GELU, and store the result.
+  // Epilogue: for outputs inside y, add bias[col] (bias may be nullptr), apply
+  // gelu() when act == ACT_GELU, and store.
   // YOUR CODE HERE
   // ============================================================
 }

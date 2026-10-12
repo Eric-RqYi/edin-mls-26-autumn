@@ -51,8 +51,8 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
 
   int kv_h = 0;  // the K/V head this query head reads
   // ======================== BLANK 4.1 =========================
-  // GQA: the num_heads query heads are split into num_kv_heads equal groups of
-  // consecutive heads; every head in group g reads K/V head g.
+  // Set kv_h, the K/V head that query head h reads (GQA: groups of consecutive
+  // query heads share one K/V head).
   // YOUR CODE HERE
   // ============================================================
 
@@ -86,42 +86,27 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
 
   for (int j0 = 0; j0 <= block_last_key; j0 += KV_TILE) {
     // ======================== BLANK 4.2 =========================
-    // All threads of the block copy keys and values j0 .. j0+KV_TILE-1 into shared
-    // memory: k_tile[r * k_pitch + d] = key (j0 + r), element d, and
-    // v_tile[r * head_dim + d] likewise for values. Spread the KV_TILE * head_dim
-    // elements over the threads so that consecutive threads read consecutive d.
-    // Use 0 for keys past seq_k. Then make sure the tile is complete before anyone
-    // uses it.
+    // Copy keys and values j0 .. j0+KV_TILE-1 of this head into k_tile (rows of
+    // k_pitch floats) and v_tile (rows of head_dim floats), with 0 for keys past
+    // seq_k. All threads of the block take part.
     // YOUR CODE HERE
     // ============================================================
 
     float s = -INFINITY;  // this lane's score for key j0 + lane
     // ======================== BLANK 4.3 =========================
-    // If key j0 + lane is visible to this query (j0 + lane <= last_key), set s to
-    // the dot product of qv (already scaled) with row `lane` of k_tile.
-    // Otherwise leave s = -INFINITY, which becomes probability 0.
+    // Set s to this query's score for key j0 + lane, if the query may see that
+    // key (last_key).
     // YOUR CODE HERE
     // ============================================================
 
     float p = 0.0f;  // this lane's exp(s - m_new): unnormalised probability of key j0 + lane
     // ======================== BLANK 4.4 =========================
-    // Update m, l and acc for this tile, following the worked example in
-    // docs/task4-attention.md (section 3). Tips:
-    //   - m and l belong to the whole warp: all 32 lanes must end with the same
-    //     values. The warp reductions from task 2 give every lane the tile's
-    //     max or sum.
-    //   - Rescale what was summed so far before you add this tile.
-    //   - Also set p (see its comment above the blank); 4.5 needs it.
-    //   - While no key has been visible, the max is -INFINITY; then skip the
-    //     update and leave p = 0.
+    // Update m, l and acc with this tile (guide, section 3) and set p.
     // YOUR CODE HERE
     // ============================================================
 
     // ======================== BLANK 4.5 =========================
-    // Add this tile's values, weighted by p, to acc. This lane owns output dims
-    // lane, lane + 32, ... (acc[0], acc[1], ...), but the p of key r sits in
-    // lane r. A warp shuffle can hand one lane's value to every lane; all 32
-    // lanes must take part in it.
+    // Add this tile's values, weighted by p, to acc.
     // YOUR CODE HERE
     // ============================================================
 
@@ -129,8 +114,7 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
   }
 
   // ======================== BLANK 4.6 =========================
-  // Write out = acc / l for this warp's query (only if active). Lane `lane` owns
-  // output dims lane + c * 32 for c < dims.
+  // Write acc / l to out for this warp's query.
   // YOUR CODE HERE
   // ============================================================
 }

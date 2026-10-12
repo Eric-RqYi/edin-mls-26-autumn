@@ -15,8 +15,7 @@
 // Memory layout, straight out of the q/k projections (no transposes):
 //     q: [batch, seq_len, num_q_heads, head_dim]
 //     k: [batch, seq_len, num_k_heads, head_dim]
-// Seen as a 2D array, each row is one head of one token: row r of q belongs to the
-// token at position (r / num_q_heads) % seq_len.
+// Seen as a 2D array, each row is one head of one token.
 //
 // One launch rotates q AND k: one thread per pair, q's pairs first, then k's.
 #include "asr_kernels.h"
@@ -33,16 +32,16 @@ __global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_l
 
   int idx = 0;  // this thread's pair number, counting q's pairs first, then k's
   // ======================== BLANK 1.1 =========================
-  // Compute the global thread index (as in vector_add), store it in idx, and
-  // return if it is past the last pair (q_pairs + k_pairs pairs in total).
+  // Set idx to this thread's global index. Threads without a pair
+  // (q_pairs + k_pairs in total) do nothing.
   // YOUR CODE HERE
   // ============================================================
 
   float* x = q;               // the tensor this thread works on
   int num_heads = num_q_heads;
   // ======================== BLANK 1.2 =========================
-  // Threads with idx >= q_pairs work on k: point x at k, use num_k_heads,
-  // and subtract q_pairs from idx so it counts pairs inside k from 0.
+  // Threads past q's pairs work on k: make x, num_heads and idx describe the
+  // tensor this thread works on, with idx counting from 0 inside it.
   // YOUR CODE HERE
   // ============================================================
 
@@ -50,15 +49,13 @@ __global__ void rope_kernel(float* q, float* k, const float* inv_freq, int seq_l
   int i = 0;    // which pair inside that row, 0 .. half-1
   int pos = 0;  // position of the token this row belongs to
   // ======================== BLANK 1.3 =========================
-  // Split idx into row and i (each row has `half` pairs), then compute pos
-  // from row (see the layout notes at the top of the file).
+  // Set row, i (the pair inside the row) and pos (the token position of the row).
   // YOUR CODE HERE
   // ============================================================
 
   float* v = x + static_cast<size_t>(row) * head_dim;  // start of this row
   // ======================== BLANK 1.4 =========================
-  // Read the pair (v[i], v[i + half]), compute the angle, and write the
-  // rotated pair back in place. Use cosf and sinf.
+  // Rotate the pair (v[i], v[i + half]) in place.
   // YOUR CODE HERE
   // ============================================================
 }
