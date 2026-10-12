@@ -1,6 +1,6 @@
 # Task 2: reductions
 
-Files: `csrc/task2_reduce.cuh` (part A) and `csrc/task2_reduce.cu` (part B). Test: `make test2`. Model check: `./run.sh --cuda task1,task2`.
+Files: `csrc/task2_reduce.cuh` (part A) and `csrc/task2_reduce.cu` (part B). Build: `make`. Test: `make test2`. Model check: `./run.sh --cuda task1,task2`.
 
 A reduction turns many numbers into one: a sum, a maximum, a mean. In task 1 every thread worked alone. Here threads have to combine their results, so they need ways to pass values to each other. In part A you build reduction helpers at two levels, the warp and the block. In part B you use them for RMSNorm and softmax. Task 4 uses your warp helpers again.
 

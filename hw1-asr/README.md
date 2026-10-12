@@ -35,6 +35,8 @@ Replace `// YOUR CODE HERE` with your code. A blank needs between one and about 
 
 Do the tasks in order. Each one builds on the one before, and task 4 calls the warp reductions you write in task 2.
 
+After every change to a file in `csrc/`, run `make` on a GPU node. It compiles your kernels and the tests, and it is where you see your compiler errors.
+
 Recall the memory hierarchy from the lecture. Global memory (the GPU's main memory) is large and slow. Shared memory is small and fast and belongs to one block, and registers are the fastest and belong to one thread. In all four tasks, a fast kernel loads each value from global memory as few times as it can and does the repeated work in shared memory and registers. The tests print how close each kernel gets to the GPU's limits.
 
 ## What is in this folder
@@ -109,10 +111,11 @@ Asking for one kind can mean a longer wait when all of them are busy.
 ## Step 3: check your setup
 
 ```bash
-./run.sh --cuda none
+make                     # compile the kernels and the tests for this GPU
+./run.sh --cuda none     # run the model on PyTorch only
 ```
 
-This runs the whole model with PyTorch's own operations instead of your kernels. Before it starts, Python loads PyTorch and the model's weights from your home directory, which takes from half a minute to a few minutes, depending on the node and on how busy the file system is. It should end like this (this is from an RTX 2080 Ti; the times depend on the GPU, and for PyTorch also on the node's CPU):
+`make` has to finish without errors. The blanks are still empty, so the kernels compile but do not compute anything yet. `./run.sh --cuda none` then runs the whole model with PyTorch's own operations instead of your kernels. Before it starts, Python loads PyTorch and the model's weights from your home directory, which takes from half a minute to a few minutes, depending on the node and on how busy the file system is. It should end like this (this is from an RTX 2080 Ti; the times depend on the GPU, and for PyTorch also on the node's CPU):
 
 ```
 Time: 992.9 ms per transcription (+/- 4.8 ms), 76.4 ms per token
@@ -131,8 +134,15 @@ For each task:
 
 1. Read its guide in `docs/`. It explains what the kernel computes, how the work is split between threads, and each blank.
 2. Fill in the blanks.
-3. Run the task's test, for example `make test1`. It builds your code, runs it on the shapes the model uses, compares the results with a CPU version, and prints the time.
-4. When the test says `ALL PASS`, run the model with your kernels switched on: `./run.sh --cuda task1` after task 1, `./run.sh --cuda task1,task2` after task 2, and so on.
+3. Compile, test, and run the model with your kernel:
+
+```bash
+make                     # compile; fix every error it reports
+make test1               # the task's test (make test2, test3, test4 for the others)
+./run.sh --cuda task1    # the model with your task 1 kernel switched on
+```
+
+The test runs your kernel on the shapes the model uses, compares the results with a CPU version, and prints the time. When it says `ALL PASS`, run the model: `./run.sh --cuda task1` after task 1, `./run.sh --cuda task1,task2` after task 2, and so on.
 
 The tests print one line per case. While a blank is still empty you will see failures like:
 

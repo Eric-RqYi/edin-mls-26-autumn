@@ -1,6 +1,6 @@
 # Task 4: attention
 
-File: `csrc/task4_attention.cu`. Test: `make test4`. Model check: `./run.sh` (all four tasks).
+File: `csrc/task4_attention.cu`. Build: `make`. Test: `make test4`. Model check: `./run.sh` (all four tasks).
 
 This is the last and largest task, and it reuses what you built before: dot products as in the GEMM, a tile that a block shares through shared memory, and the warp reductions and `MaxSum` from task 2. Read the sections in order; each one adds one idea, and section 7 lists the blanks.
 

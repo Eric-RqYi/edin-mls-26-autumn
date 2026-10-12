@@ -1,6 +1,6 @@
 # Task 3: the linear layer as a tiled GEMM
 
-File: `csrc/task3_gemm.cu`. Test: `make test3`. Model check: `./run.sh --cuda task1,task2,task3`.
+File: `csrc/task3_gemm.cu`. Build: `make`. Test: `make test3`. Model check: `./run.sh --cuda task1,task2,task3`.
 
 Every linear layer of the model computes
 
