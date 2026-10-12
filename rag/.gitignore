@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+.cache/
+.venv/
+venv/
+results/
+*.log
+.pytest_cache/
+*.aux
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+
+# Course assets are distributed separately from source code.
+data/rag_corpus/*
+!data/rag_corpus/README.md
+models/enc_a/*
+!models/enc_a/README.md
