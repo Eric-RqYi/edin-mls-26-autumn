@@ -213,7 +213,3 @@ Two tools help with the harder bugs:
 
 - `ASR_DEBUG=1 ./run.sh` waits for every kernel to finish before starting the next, so an error is reported by the operation that caused it, not by a later one.
 - `compute-sanitizer build/sm_XX/test_task3_gemm small` (with your GPU's `sm_XX`) reports the exact line of every out-of-bounds access. `compute-sanitizer --tool racecheck build/sm_XX/test_task3_gemm small` reports shared-memory races, such as a missing `__syncthreads()`. The sanitizer makes every kernel many times slower, so use it on the tests rather than the whole model, and add `small`: the test then runs only its small cases and skips the timing, which takes seconds instead of many minutes.
-
-## Going further (not marked)
-
-Some ideas if you want to go further: keep each thread's partial results for a 4 × 4 block of outputs in registers in the GEMM (register tiling), use the tensor cores through `wmma`, compute `gate_proj` and `up_proj` in a single GEMM, or add a KV cache so the decoder stops recomputing the whole sequence for every new token (see [docs/model-tour.md](docs/model-tour.md)).
