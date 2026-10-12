@@ -51,6 +51,7 @@ edin-mls-26-autumn/
     ├── tests/                     # your kernels against a CPU reference, with timing
     ├── glm_asr_cuda/              # the model in Python; calls your kernels
     └── run.sh                     # build, then transcribe test_audio.wav
+```
 
 ## Learning Path
 
