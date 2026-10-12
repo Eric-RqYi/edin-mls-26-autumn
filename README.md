@@ -69,7 +69,7 @@ edin-mls-26-autumn/
 │   ├── 6-optional-thrust-atomics/ # Optional: thrust containers, atomics
 │   ├── common/check.h             # checkCudaErrors(), as used on the slides
 │   └── Makefile                   # builds every example with nvcc -arch=native
-└── hw1-asr/                       # Homework 1: speech recognition on your own CUDA kernels
+├── hw1-asr/                       # Homework 1: speech recognition on your own CUDA kernels
 │   ├── README.md                  # start here: setup, tasks, what to hand in
 │   ├── docs/                      # a tour of the model and one guide per task
 │   ├── csrc/                      # the kernels you complete (fill in the blanks)
