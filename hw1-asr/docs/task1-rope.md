@@ -1,6 +1,6 @@
 # Task 1: rotary position embedding (RoPE)
 
-File: `csrc/task1_rope.cu`. Test: `make test1`. Model check: `./run.sh --cuda task1`.
+File: `csrc/task1_rope.cu`. Build: `make`. Test: `make test1`. Model check: `./run.sh --cuda task1`.
 
 This is the warm-up. It is an element-wise kernel like `vector_add`: every thread does a few independent multiplications on its own data. The work is in the index arithmetic: working out which numbers a thread owns when the data is a 4D array.
 
