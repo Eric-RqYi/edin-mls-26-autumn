@@ -1,0 +1,24 @@
+{
+  "course": "INFR11269 Machine Learning Systems 2026/27",
+  "template_basis": "Official ICLR 2027 LaTeX style",
+  "expected_header_contains": "Under review as a report for UoE 26/27 Sem1 INFR11269: Machine Learning Systems",
+  "paper_width_pt": 612.0,
+  "paper_height_pt": 792.0,
+  "paper_size_tolerance_pt": 1.5,
+  "expected_text_left_pt": 108.0,
+  "expected_text_right_pt": 504.0,
+  "horizontal_tolerance_pt": 9.0,
+  "body_font_size_pt": 10.0,
+  "body_font_size_tolerance_pt": 0.5,
+  "require_review_line_numbers": true,
+  "main_body_page_limit": 6,
+  "main_body_page_limit_status": "Confirmed",
+  "references_excluded_from_main_body_limit": true,
+  "appendix_policy": "Optional, excluded from the main-body limit; reviewers are not obliged to read it. Essential content must remain in the main body.",
+  "notes": [
+    "Main-body pages are estimated from the page containing the References heading.",
+    "If References begins on a new page, that page is excluded; if main-body content appears before References on the same page, that page counts.",
+    "If the References boundary cannot be detected reliably, page-limit checking returns WARN rather than guessing.",
+    "PDF-only checks detect visible formatting changes; exact source-file identity requires source-level verification."
+  ]
+}
