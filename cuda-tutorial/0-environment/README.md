@@ -8,15 +8,15 @@ Slides 28–33 (skipped in class; read them before the practical). Logging in an
 # From an approved campus/VPN network:
 ssh YOUR_UUN@student.ssh.inf.ed.ac.uk
 # On the gateway:
-ssh icf.inf.ed.ac.uk
+ssh mlp.inf.ed.ac.uk
 ```
 
 Before class, check three things separately: your own DICE account, Teaching course access, and a campus or approved VPN network.
 
-Slides 30–32 add the macOS Kerberos route (`kinit -f YOUR_UUN@INF.ED.AC.UK`, then ssh with GSSAPI), the difference between your DICE/AFS home on the gateway and your cluster home on `icf`, and links to the official DICE and cluster documentation. Compute nodes use the cluster home, so clone this repository there:
+Slides 30–32 add the macOS Kerberos route (`kinit -f YOUR_UUN@INF.ED.AC.UK`, then ssh with GSSAPI), the difference between your DICE/AFS home on the gateway and your cluster home on `mlp`, and links to the official DICE and cluster documentation. Compute nodes use the cluster home, so clone this repository there:
 
 ```bash
-# On icf (the head node)
+# On mlp (the head node)
 git clone https://github.com/ed-aisys/edin-mls-26-autumn.git
 ```
 
