@@ -59,35 +59,35 @@ Leave the GPU shell with `exit` when you are done, so the GPU goes back to the p
 
 ```
 edin-mls-26-autumn/
-├── cuda-tutorial/                 # CUDA C++ examples from the lecture
-│   ├── 0-environment/             # Cluster login and Slurm allocation
-│   ├── 1-first-kernel/            # First kernel and function qualifiers
-│   ├── 2-vectoradd/               # Vector add, memory and student checkpoint
-│   ├── 3-streams/                 # Streams and event dependencies
-│   ├── 4-shared-memory/           # Matrix-vector multiply and shared storage
-│   ├── 5-tiled-gemm/              # Tiled GEMM and block barriers
-│   ├── 6-optional-thrust-atomics/  # Thrust containers and atomics
-│   ├── common/check.h            # checkCudaErrors(), as used on the slides
-│   └── Makefile                  # Build examples with nvcc -arch=native
-├── hw1-asr/                       # Speech recognition on your CUDA kernels
-│   ├── README.md                 # Setup, tasks and what to hand in
-│   ├── docs/                     # Model tour and task guides
-│   ├── csrc/                     # Kernels you complete
-│   ├── tests/                    # CPU-reference checks and kernel timing
-│   ├── glm_asr_cuda/             # ASR model and operation interfaces
-│   └── run.sh                    # Build and transcribe test_audio.wav
+├── cuda-tutorial/                 # CUDA C++ examples from the lecture (slide numbers in each README)
+│   ├── 0-environment/             # Teaching cluster: login and Slurm allocation (commands from the slides)
+│   ├── 1-first-kernel/            # First kernel, function qualifiers
+│   ├── 2-vectoradd/               # Example 0: vector add, host/device memory, student checkpoint
+│   ├── 3-streams/                 # Example 1: CUDA streams and event dependencies
+│   ├── 4-shared-memory/           # Example 2: matrix-vector multiply, explicit shared storage
+│   ├── 5-tiled-gemm/              # Example 3: tiled GEMM, block barriers, event timing
+│   ├── 6-optional-thrust-atomics/ # Optional: thrust containers, atomics
+│   ├── common/check.h             # checkCudaErrors(), as used on the slides
+│   └── Makefile                   # builds every example with nvcc -arch=native
+└── hw1-asr/                       # Homework 1: speech recognition on your own CUDA kernels
+│   ├── README.md                  # start here: setup, tasks, what to hand in
+│   ├── docs/                      # a tour of the model and one guide per task
+│   ├── csrc/                      # the kernels you complete (fill in the blanks)
+│   ├── tests/                     # your kernels against a CPU reference, with timing
+│   ├── glm_asr_cuda/              # the model in Python; calls your kernels
+│   └── run.sh                     # build, then transcribe test_audio.wav
 ├── rag/                           # Retrieval-augmented answer generation
-│   ├── README.md                 # Step-by-step setup and evaluation
-│   ├── src/                      # ASR adapter and RAG pipeline components
-│   ├── scripts/                  # Asset installation, query runs and evaluation
-│   ├── tests/                    # Adapter and audio-interface tests
-│   ├── data/rag_corpus/          # Course data and corpus embeddings
-│   ├── models/enc_a/             # Local query encoder
-│   └── extensions/               # Investigation-specific code
+│   ├── README.md                  # Step-by-step setup and evaluation
+│   ├── src/                       # ASR adapter and RAG pipeline components
+│   ├── scripts/                   # Asset installation, query runs and evaluation
+│   ├── tests/                     # Adapter and audio-interface tests
+│   ├── data/rag_corpus/           # Course data and corpus embeddings
+│   ├── models/enc_a/              # Local query encoder
+│   └── extensions/                # Investigation-specific code
 └── report/                        # Shared coursework report resources
-    ├── latex_template/           # Report source and style files
+    ├── latex_template/            # Report source and style files
     ├── report_template_overleaf.zip
-    └── format_checker/           # PDF checks and six-page body limit
+    └── format_checker/            # PDF checks and six-page body limit
 ```
 
 ## Learning Path
