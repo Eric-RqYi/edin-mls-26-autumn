@@ -2,7 +2,9 @@
 
 Welcome to the Machine Learning Systems course at the University of Edinburgh (Autumn 2026). This repository holds the course's code. The first part is the CUDA C++ examples from the lecture *GPU Architecture and CUDA Programming*. Every example is the code shown on the slides, as a complete program you can build and run on the teaching cluster.
 
-More material (tutorials, assignments) will be added during the term.
+The second part is Homework 1 (`hw1-asr/`): you write the CUDA kernels that a speech recognition model runs on. Start it after the CUDA tutorial; its [README](hw1-asr/README.md) has the instructions.
+
+More material will be added during the term.
 
 ## Quick Start
 
@@ -32,7 +34,7 @@ Leave the GPU shell with `exit` when you are done, so the GPU goes back to the p
 
 ```
 edin-mls-26-autumn/
-└── cuda-tutorial/                 # CUDA C++ examples from the lecture (slide numbers in each README)
+├── cuda-tutorial/                 # CUDA C++ examples from the lecture (slide numbers in each README)
     ├── 0-environment/             # Teaching cluster: login and Slurm allocation (commands from the slides)
     ├── 1-first-kernel/            # First kernel, function qualifiers
     ├── 2-vectoradd/               # Example 0: vector add, host/device memory, student checkpoint
@@ -42,7 +44,13 @@ edin-mls-26-autumn/
     ├── 6-optional-thrust-atomics/ # Optional: thrust containers, atomics
     ├── common/check.h             # checkCudaErrors(), as used on the slides
     └── Makefile                   # builds every example with nvcc -arch=native
-```
+└── hw1-asr/                       # Homework 1: speech recognition on your own CUDA kernels
+    ├── README.md                  # start here: setup, tasks, what to hand in
+    ├── docs/                      # a tour of the model and one guide per task
+    ├── csrc/                      # the kernels you complete (fill in the blanks)
+    ├── playground/                # tests: your kernels against a CPU reference, with timing
+    ├── glm_asr_cuda/              # the model in Python; calls your kernels
+    └── run.sh                     # build, then transcribe test_audio.wav
 
 ## Learning Path
 
@@ -55,6 +63,7 @@ edin-mls-26-autumn/
 | **5. Example 2** | `4-shared-memory` | 68–78 | Data reuse and `__shared__` |
 | **6. Example 3** | `5-tiled-gemm` | 79–84, 87 | Tiling, barriers, timing against a baseline |
 | **Optional** | `6-optional-thrust-atomics` | 57–60 | thrust, atomics |
+| **Homework 1** | `hw1-asr`: RoPE, reductions, tiled GEMM, attention | | Run a speech recognition model on your own kernels |
 
 ## GPU Compatibility
 
