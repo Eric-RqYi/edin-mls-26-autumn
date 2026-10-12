@@ -12,7 +12,7 @@ The commands are the ones on slides 29–33 and 53.
 
 ```bash
 # 1. Log in: two ssh hops (campus network or approved VPN)
-ssh YOUR_UUN@student.ssh.inf.ed.ac.uk
+ssh YOUR_UUN@ssh.inf.ed.ac.uk
 ssh mlp.inf.ed.ac.uk
 
 # 2. Clone the repository on the head node

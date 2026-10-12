@@ -6,7 +6,7 @@ Slides 28–33 (skipped in class; read them before the practical). Logging in an
 
 ```bash
 # From an approved campus/VPN network:
-ssh YOUR_UUN@student.ssh.inf.ed.ac.uk
+ssh YOUR_UUN@ssh.inf.ed.ac.uk
 # On the gateway:
 ssh mlp.inf.ed.ac.uk
 ```

@@ -63,7 +63,7 @@ cd edin-mls-26-autumn/hw1-asr
 bash setup_env.sh
 ```
 
-`mlp` only accepts connections from the Informatics VPN or a DICE machine. From anywhere else, first `ssh YOUR_UUN@student.ssh.inf.ed.ac.uk`, then run the `ssh` to `mlp` from there.
+`mlp` only accepts connections from the Informatics VPN or a DICE machine. From anywhere else, first `ssh YOUR_UUN@ssh.inf.ed.ac.uk`, then run the `ssh` to `mlp` from there.
 
 Run `setup_env.sh` on the head node, because it downloads files and the GPU nodes may have no internet access. It installs Miniconda if you do not have conda yet, creates a conda environment called `mls-asr` with PyTorch and Hugging Face `transformers`, and downloads the model (4.5 GB). It needs about 20 GB of space in your home directory, and most of its time goes into downloading about 8 GB. You can run it again if it stops halfway.
 
