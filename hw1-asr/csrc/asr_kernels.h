@@ -1,5 +1,5 @@
 // The C interface of libasr_kernels.so. Python (glm_asr_cuda/ops.py) and the
-// playground tests call these functions. You do not need to change this file.
+// tests call these functions. You do not need to change this file.
 //
 // Conventions:
 //   - every pointer is a GPU (device) pointer to contiguous row-major data

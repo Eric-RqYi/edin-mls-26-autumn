@@ -74,7 +74,7 @@ Thread `(ty, tx)` loads `ws[ty][tx]`. Which row of W is that, and which column? 
 make test3
 ```
 
-Small cases are checked against a CPU loop, large ones against cuBLAS. For each case the test also times the naive kernel (one thread per output, no shared memory, in `playground/test_task3_gemm.cu`) and cuBLAS. When a case passes, a second line shows their speed on the same case, so you can see where your kernel stands:
+Small cases are checked against a CPU loop, large ones against cuBLAS. For each case the test also times the naive kernel (one thread per output, no shared memory, in `tests/test_task3_gemm.cu`) and cuBLAS. When a case passes, a second line shows their speed on the same case, so you can see where your kernel stands:
 
 ```
 encoder fc1 + GELU (1500x5120x1280)  PASS  max_err=...   ... ms   ... GFLOP/s

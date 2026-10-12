@@ -48,7 +48,7 @@ edin-mls-26-autumn/
     ├── README.md                  # start here: setup, tasks, what to hand in
     ├── docs/                      # a tour of the model and one guide per task
     ├── csrc/                      # the kernels you complete (fill in the blanks)
-    ├── playground/                # tests: your kernels against a CPU reference, with timing
+    ├── tests/                     # your kernels against a CPU reference, with timing
     ├── glm_asr_cuda/              # the model in Python; calls your kernels
     └── run.sh                     # build, then transcribe test_audio.wav
 

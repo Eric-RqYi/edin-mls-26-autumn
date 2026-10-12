@@ -42,11 +42,11 @@ Recall the memory hierarchy from the lecture. Global memory (the GPU's main memo
 | Folder or file | What it is for |
 |----------------|----------------|
 | `csrc/` | The CUDA code. You fill in the blanks of the five `task*` files. `common.cuh` has small helpers, `asr_kernels.h` lists the C functions that Python calls, and `provided.cu` holds kernels that are already finished. |
-| `playground/` | One test program per task (`make test1` to `make test4`). Each runs your kernel on the model's shapes, compares it with a CPU version and times it. |
+| `tests/` | One test program per task (`make test1` to `make test4`). Each runs your kernel on the model's shapes, compares it with a CPU version and times it. |
 | `docs/` | A guide for each task, and a [tour of the model](docs/model-tour.md). |
 | `glm_asr_cuda/` | The Python side. `model.py` is the model; `ops.py` runs each operation on your kernel or on PyTorch. You do not need to change them. |
 | `build/` | Created by `make`: the compiled library and tests, one folder per kind of GPU. Safe to delete. |
-| `Makefile` | Builds `csrc/` and `playground/` into `build/`. |
+| `Makefile` | Builds `csrc/` and `tests/` into `build/`. |
 | `run.sh`, `benchmark.py` | Transcribe `test_audio.wav` with your kernels and check the result. |
 | `setup_env.sh` | One-time setup: the conda environment and the model download. |
 | `run_asr.sbatch` | The tests and the model as a batch job. |
@@ -145,7 +145,7 @@ When the kernel is right, the line says `PASS` instead and also shows the time o
 
 `--cuda` takes a list of tasks: those use your kernels, and the rest use PyTorch. So you can check each task inside the real model before the others are done. A few kernels in `csrc/provided.cu` are already complete; they are always on unless you pass `--cuda none`.
 
-The playground tests are also the place to experiment. Every task file has a tuning constant at the top (`ROPE_THREADS`, `REDUCE_THREADS`, `TILE`, `ATTN_WARPS`), and every guide ends with a "Try this" list of experiments. Change something, rerun the test, and see what happens to the time.
+The tests are also the place to experiment. Every task file has a tuning constant at the top (`ROPE_THREADS`, `REDUCE_THREADS`, `TILE`, `ATTN_WARPS`), and every guide ends with a "Try this" list of experiments. Change something, rerun the test, and see what happens to the time.
 
 ## Step 5: run everything on your kernels
 
@@ -165,7 +165,7 @@ benchmark.py                 reads the audio, runs the model, checks the transcr
     glm_asr_cuda/ops.py      one Python function per operation; calls your kernel or PyTorch
       build/sm_XX/libasr_kernels.so      built by `make` from csrc/
         csrc/task*.cu        your kernels
-playground/test_task*.cu     the tests: the same kernels on fixed inputs, with a CPU reference
+tests/test_task*.cu          the tests: the same kernels on fixed inputs, with a CPU reference
 ```
 
 Python cannot call CUDA C++ directly. `make` compiles `csrc/` into a shared library, and `ops.py` calls the plain C launch functions in it (`launch_rope`, `launch_linear`, ...) through Python's `ctypes` module, passing the GPU addresses of PyTorch tensors. The launch functions are already written; they sit at the bottom of each task file and show the grid and block sizes your kernel is started with.

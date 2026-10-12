@@ -1,4 +1,4 @@
-# Build the kernels and the playground tests. Run on a GPU node.
+# Build the kernels and the tests. Run on a GPU node.
 #
 #   make            build build/sm_XX/libasr_kernels.so and the four tests
 #   make lib        build only the library (what ./run.sh needs)
@@ -45,7 +45,7 @@ $(LIB): $(OBJS)
 	$(NVCC) $(FLAGS) -shared $^ -o $@
 
 # Tests link the kernel objects directly. The GEMM test also uses cuBLAS as a reference.
-$(BUILD)/test_%: playground/test_%.cu playground/test_util.h $(OBJS)
+$(BUILD)/test_%: tests/test_%.cu tests/test_util.h $(OBJS)
 	$(NVCC) $(FLAGS) $< $(OBJS) -o $@ -lcublas -Xlinker -rpath -Xlinker $(CUDA_HOME)/lib64
 
 test: all

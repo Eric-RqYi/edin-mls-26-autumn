@@ -1,4 +1,4 @@
-// Small helpers shared by the playground tests: device buffers, random data,
+// Small helpers shared by the tests: device buffers, random data,
 // comparison against a reference, and timing with CUDA events.
 #pragma once
 #include <cuda_runtime.h>
