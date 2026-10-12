@@ -37,17 +37,33 @@ Do the tasks in order. Each one builds on the one before, and task 4 calls the w
 
 Recall the memory hierarchy from the lecture. Global memory (the GPU's main memory) is large and slow. Shared memory is small and fast and belongs to one block, and registers are the fastest and belong to one thread. In all four tasks, a fast kernel loads each value from global memory as few times as it can and does the repeated work in shared memory and registers. The tests print how close each kernel gets to the GPU's limits.
 
+## What is in this folder
+
+| Folder or file | What it is for |
+|----------------|----------------|
+| `csrc/` | The CUDA code. You fill in the blanks of the five `task*` files. `common.cuh` has small helpers, `asr_kernels.h` lists the C functions that Python calls, and `provided.cu` holds kernels that are already finished. |
+| `playground/` | One test program per task (`make test1` to `make test4`). Each runs your kernel on the model's shapes, compares it with a CPU version and times it. |
+| `docs/` | A guide for each task, and a [tour of the model](docs/model-tour.md). |
+| `glm_asr_cuda/` | The Python side. `model.py` is the model; `ops.py` runs each operation on your kernel or on PyTorch. You do not need to change them. |
+| `build/` | Created by `make`: the compiled library and tests, one folder per kind of GPU. Safe to delete. |
+| `Makefile` | Builds `csrc/` and `playground/` into `build/`. |
+| `run.sh`, `benchmark.py` | Transcribe `test_audio.wav` with your kernels and check the result. |
+| `setup_env.sh` | One-time setup: the conda environment and the model download. |
+| `run_asr.sbatch` | The tests and the model as a batch job. |
+| `test_audio.wav`, `test_audio.txt` | The recording and what is said in it. |
+
 ## Step 1: set up, once
 
-Log in to the head node and clone the course repository, as in [cuda-tutorial/0-environment](../cuda-tutorial/0-environment/README.md). If you cloned it earlier, run `git pull` inside it instead.
+Log in to the cluster's head node, `mlp.inf.ed.ac.uk`, and clone the course repository there. If you cloned it earlier, run `git pull` inside it instead.
 
 ```bash
-ssh YOUR_UUN@student.ssh.inf.ed.ac.uk
-ssh icf.inf.ed.ac.uk
+ssh YOUR_UUN@mlp.inf.ed.ac.uk
 git clone https://github.com/ed-aisys/edin-mls-26-autumn.git
 cd edin-mls-26-autumn/hw1-asr
 bash setup_env.sh
 ```
+
+`mlp` only accepts connections from the Informatics VPN or a DICE machine. From anywhere else, first `ssh YOUR_UUN@ssh.inf.ed.ac.uk`, then run the `ssh` to `mlp` from there.
 
 Run `setup_env.sh` on the head node, because it downloads files and the GPU nodes may have no internet access. It installs Miniconda if you do not have conda yet, creates a conda environment called `mls-asr` with PyTorch and Hugging Face `transformers`, and downloads the model (4.5 GB). It needs about 20 GB of space in your home directory, and most of its time goes into downloading about 8 GB. You can run it again if it stops halfway.
 
