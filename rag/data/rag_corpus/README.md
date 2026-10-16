@@ -1,6 +1,7 @@
 # RAG data
 
-Download `rag-assets.zip` from the coursework materials. Extract it into a
+Fetch the repository-root `rag-assets.zip` with Git LFS, following
+[Step 2 of the RAG guide](../../README.md#step-2-install-the-course-data-once). Extract it into a
 folder containing `data/` and `models/`, then run `rag/scripts/install_assets.py`
 with `--from-dir` pointing to that folder. See the RAG README for the commands.
 

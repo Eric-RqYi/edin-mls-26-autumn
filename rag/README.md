@@ -58,20 +58,30 @@ settings at their supplied values for your first run. Keep your key local.
 
 ## Step 2: install the course data, once
 
-Download **`rag-assets.zip` from the coursework materials** and copy it to the
-cluster. The archive contains the corpus, query audio, public relevance
-judgements, corpus embeddings and enc_a model. It is distributed separately
-from the Git source because these files are large.
+The repository root contains [`rag-assets.zip`](../rag-assets.zip), stored with
+**Git LFS**. The archive contains the corpus, query audio, public relevance
+judgements, enc_a/enc_b corpus embeddings and the enc_a model.
+
+Install [Git LFS](https://git-lfs.com/) on the machine where you cloned the
+repository. From the repository root, download the archive contents:
+
+```bash
+git lfs install
+git lfs pull --include="rag-assets.zip"
+```
+
+Run these commands for an existing checkout too. If Git LFS was already installed
+before cloning, Git normally downloads the archive during the clone. If you
+downloaded the source as a ZIP, use a Git clone with Git LFS for these steps.
 
 Extract the archive, then install its contents into the RAG module:
 
 ```bash
 mkdir -p "$HOME/mls-rag-assets"
-unzip /path/to/rag-assets.zip -d "$HOME/mls-rag-assets"
+unzip rag-assets.zip -d "$HOME/mls-rag-assets"
 python rag/scripts/install_assets.py --from-dir "$HOME/mls-rag-assets"
 ```
 
-Replace `/path/to/rag-assets.zip` with the location of the file you downloaded.
 After extraction, `mls-rag-assets/` contains `data/` and `models/`. A successful
 installation reports `Course assets verified` and copies the files into `rag/`.
 Running the same command again verifies existing files and skips matching ones.
@@ -187,6 +197,8 @@ define compatible query encoding or a justified mapping when using enc_b.
 | What you see | What to check |
 |---|---|
 | Corpus, embeddings or model files missing | Complete Step 2 using the course asset archive |
+| `git: 'lfs' is not a git command` | Install Git LFS on that machine, then repeat Step 2 |
+| `unzip` reports that `rag-assets.zip` is not a ZIP archive | It may still be a small LFS pointer file. Run `git lfs install` and `git lfs pull --include="rag-assets.zip"` from the repository root |
 | ELM key missing | Add your own key to `rag/.env` |
 | ELM authentication/model request error | Check the key, endpoint and selected model in `.env` |
 | ASR source path missing | Use the complete course checkout, or set `RAG_ASR_ROOT` to its `hw1-asr/` directory |
