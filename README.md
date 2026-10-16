@@ -108,11 +108,14 @@ edin-mls-26-autumn/
 
 ## RAG data and ELM access
 
-Download `rag-assets.zip` from the coursework materials and install it using the
+The repository includes [`rag-assets.zip`](rag-assets.zip), stored with Git LFS.
+Install Git LFS on the machine where you clone the repository, then run
+`git lfs install` and `git lfs pull --include="rag-assets.zip"` from the repository
+root. Install the archive using the
 [RAG guide](rag/README.md#step-2-install-the-course-data-once). The archive supplies
 24,000 corpus records, 350 practice audio queries, 125 dev audio queries, public
 relevance judgements, enc_a/enc_b corpus embeddings and the local enc_a query
-encoder. Large data and model files are distributed separately from the Git source.
+encoder. See the RAG guide for extraction commands and Git LFS troubleshooting.
 
 Apply for your own University ELM API key and configure `rag/.env` as described in
 the RAG guide. Generation and answer evaluation make ELM requests. Start with the

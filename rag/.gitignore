@@ -15,7 +15,7 @@ results/
 *.out
 *.synctex.gz
 
-# Course assets are distributed separately from source code.
+# Extracted assets are installed from the repository's LFS archive.
 data/rag_corpus/*
 !data/rag_corpus/README.md
 models/enc_a/*
