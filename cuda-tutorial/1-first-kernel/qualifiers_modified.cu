@@ -13,6 +13,6 @@ __global__ void kernel() {
 }
 int main() {
     kernel<<<1, 2>>>();
-    // cudaDeviceSynchronize();
     cpu_hello();
+    cudaDeviceSynchronize();
 }
