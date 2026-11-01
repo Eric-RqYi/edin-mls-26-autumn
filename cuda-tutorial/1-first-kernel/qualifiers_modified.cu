@@ -12,7 +12,7 @@ __global__ void kernel() {
     gpu_hello();
 }
 int main() {
-    kernel<<<1, 2>>>();
+    kernel<<<2, 4>>>();
     cpu_hello();
     cudaDeviceSynchronize();
 }
