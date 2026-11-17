@@ -16,7 +16,27 @@
 #include "asr_kernels.h"
 #include "common.cuh"
 
-constexpr int TILE = 16;  // try 8 or 32 (32 x 32 = 1024 threads, the maximum per block)
+// Keep the previously validated tiled16 + M=1/w4 configuration by default.
+// The next-round experiment builds each alternative into a separate library.
+#ifndef ASR_TASK3_TILE
+#define ASR_TASK3_TILE 16
+#endif
+#ifndef ASR_TASK3_GEMM_IMPL
+#define ASR_TASK3_GEMM_IMPL 0  // 0: one output/thread, 1: register blocking
+#endif
+#ifndef ASR_TASK3_RM
+#define ASR_TASK3_RM 2
+#endif
+#ifndef ASR_TASK3_RN
+#define ASR_TASK3_RN 2
+#endif
+constexpr int TILE = ASR_TASK3_TILE;
+static_assert(TILE == 8 || TILE == 16 || TILE == 32, "TILE must be 8, 16 or 32");
+static_assert(ASR_TASK3_GEMM_IMPL == 0 || ASR_TASK3_GEMM_IMPL == 1,
+              "GEMM_IMPL must be 0 (tiled) or 1 (register blocked)");
+static_assert(ASR_TASK3_RM >= 1 && ASR_TASK3_RM <= 4 &&
+              ASR_TASK3_RN >= 1 && ASR_TASK3_RN <= 4,
+              "RM and RN must be between 1 and 4");
 
 // Build the original tiled baseline with -DASR_TASK3_M1_ENABLED=0. Separate
 // build directories are required when changing these flags (see experiments/).
@@ -113,6 +133,73 @@ __global__ void linear_tiled_kernel(const float* x, const float* w, const float*
   // ============================================================
 }
 
+#if ASR_TASK3_GEMM_IMPL == 1
+// A 16x16 thread block computes (16*RM)x(16*RN) outputs. Threads keep their
+// RM*RN accumulators in registers and reuse RM inputs / RN weights per K step.
+// Cooperative global reads remain contiguous along K, including edge tiles.
+constexpr int RB_THREADS = 16;
+constexpr int RB_K = 16;
+constexpr int RB_M = RB_THREADS * ASR_TASK3_RM;
+constexpr int RB_N = RB_THREADS * ASR_TASK3_RN;
+
+__global__ void linear_register_kernel(const float* x, const float* w, const float* bias,
+                                       float* y, int M, int N, int K, int act) {
+  __shared__ float xs[RB_M][RB_K];
+  __shared__ float ws[RB_N][RB_K + 1];
+  const int tx = threadIdx.x;
+  const int ty = threadIdx.y;
+  const int tid = ty * RB_THREADS + tx;
+  const int row0 = blockIdx.y * RB_M;
+  const int col0 = blockIdx.x * RB_N;
+  float acc[ASR_TASK3_RM][ASR_TASK3_RN] = {};
+
+  for (int k0 = 0; k0 < K; k0 += RB_K) {
+    for (int index = tid; index < RB_M * RB_K; index += RB_THREADS * RB_THREADS) {
+      const int r = index / RB_K;
+      const int k = index % RB_K;
+      xs[r][k] = (row0 + r < M && k0 + k < K)
+                     ? x[static_cast<size_t>(row0 + r) * K + k0 + k] : 0.0f;
+    }
+    for (int index = tid; index < RB_N * RB_K; index += RB_THREADS * RB_THREADS) {
+      const int n = index / RB_K;
+      const int k = index % RB_K;
+      ws[n][k] = (col0 + n < N && k0 + k < K)
+                     ? w[static_cast<size_t>(col0 + n) * K + k0 + k] : 0.0f;
+    }
+    __syncthreads();
+    #pragma unroll
+    for (int k = 0; k < RB_K; ++k) {
+      float av[ASR_TASK3_RM], bv[ASR_TASK3_RN];
+      #pragma unroll
+      for (int i = 0; i < ASR_TASK3_RM; ++i) av[i] = xs[ty + i * RB_THREADS][k];
+      #pragma unroll
+      for (int j = 0; j < ASR_TASK3_RN; ++j) bv[j] = ws[tx + j * RB_THREADS][k];
+      #pragma unroll
+      for (int i = 0; i < ASR_TASK3_RM; ++i) {
+        #pragma unroll
+        for (int j = 0; j < ASR_TASK3_RN; ++j) acc[i][j] += av[i] * bv[j];
+      }
+    }
+    // Even threads with no valid output must finish before tiles are reused.
+    __syncthreads();
+  }
+  #pragma unroll
+  for (int i = 0; i < ASR_TASK3_RM; ++i) {
+    const int row = row0 + ty + i * RB_THREADS;
+    #pragma unroll
+    for (int j = 0; j < ASR_TASK3_RN; ++j) {
+      const int col = col0 + tx + j * RB_THREADS;
+      if (row < M && col < N) {
+        float value = acc[i][j];
+        if (bias != nullptr) value += bias[col];
+        if (act == ACT_GELU) value = gelu(value);
+        y[static_cast<size_t>(row) * N + col] = value;
+      }
+    }
+  }
+}
+#endif
+
 ASR_API int launch_linear(const float* x, const float* w, const float* bias, float* y,
                           int M, int N, int K, int act, cudaStream_t stream) {
 #if ASR_TASK3_M1_ENABLED
@@ -123,8 +210,14 @@ ASR_API int launch_linear(const float* x, const float* w, const float* bias, flo
     RETURN_LAUNCH_ERROR();
   }
 #endif
+#if ASR_TASK3_GEMM_IMPL == 1
+  dim3 block(RB_THREADS, RB_THREADS);
+  dim3 grid(ceil_div(N, RB_N), ceil_div(M, RB_M));
+  linear_register_kernel<<<grid, block, 0, stream>>>(x, w, bias, y, M, N, K, act);
+#else
   dim3 block(TILE, TILE);
   dim3 grid(ceil_div(N, TILE), ceil_div(M, TILE));
   linear_tiled_kernel<<<grid, block, 0, stream>>>(x, w, bias, y, M, N, K, act);
+#endif
   RETURN_LAUNCH_ERROR();
 }

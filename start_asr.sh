@@ -12,7 +12,7 @@ export HF_HUB_OFFLINE=1
 export ASR_CUDA="${ASR_CUDA:-all}"
 
 cd "$REPO_ROOT/hw1-asr"
-make lib
+# make lib
 
 if (( $# )); then
     exec "$@"
