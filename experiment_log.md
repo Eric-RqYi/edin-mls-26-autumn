@@ -1,4 +1,26 @@
-### 16-Oct. ASR on GPU: NVIDIA H200 MIG 1g.18gb (sm_90)
+
+### 17-Nov-2026: Task 3 M=1 specialization (prepared offline)
+
+Branch: `ASR-improvement`. Research question: can a warp-cooperative M=1
+matrix-vector kernel reduce lm_head and full ASR latency while preserving
+numerical correctness and transcription?
+
+- Added M=1 dispatch in `hw1-asr/csrc/task3_gemm.cu`; M>1 retains the existing
+  TILE=16 kernel. Bias, GELU and the caller's CUDA stream remain supported.
+- Baseline switch: `ASR_TASK3_M1_ENABLED=0`; optimized switch: `=1`.
+  Default `ASR_TASK3_M1_WARPS=4` is a starting configuration, not a measured winner.
+- Added `hw1-asr/experiments/task3_m1/`: isolated builds for tiled and 1/2/4/8
+  warp variants, unchanged coursework tests, independent CPU-reference checks,
+  optional memcheck/synccheck, shuffled CUDA-event measurements, full-model
+  comparisons, source snapshots and CSV/Markdown summaries.
+- Cluster entry point, from `hw1-asr`:
+  `sbatch experiments/task3_m1/run_cluster.sbatch --sanitizer`.
+- Local validation: Python tool tests, command dry-run and sbatch syntax checks.
+  No local nvcc or NVIDIA GPU is available. CUDA compilation, GPU correctness,
+  sanitizer results and speedups are **pending cluster execution**; no performance
+  improvement is claimed at this stage.
+
+### 16-Oct ASR on GPU: NVIDIA H200 MIG 1g.18gb (sm_90)
 
 Baseline: finished blanks in four tasks
 ```

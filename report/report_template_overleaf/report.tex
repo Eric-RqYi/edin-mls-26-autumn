@@ -1,0 +1,166 @@
+\documentclass{article}
+
+% ============================================================
+% INFR11269 Machine Learning Systems — Coursework Report
+% Academic year 2026/27
+%
+% This coursework uses the official ICLR 2027 LaTeX style.
+%
+% IMPORTANT FORMAT RULES
+% - Do not edit iclr2027_conference.sty.
+% - Do not change page geometry, text width/height, base font size,
+%   or line spacing.
+% - Do not enable \iclrfinalcopy.
+% - Normal content packages are fine if they do not alter the report format.
+%
+% Main-body page limit: six pages.
+% References and Appendix do NOT count toward the main-body page limit.
+% Reviewers are not obliged to read Appendix at all. Please put your main content
+% in the main body.
+% 
+% AI policy:
+% Academic integrity is an underlying principle of research and academic practice.
+% All submitted work is expected to be your own, including any material you have
+% generated yourself with the assistance of AI tools such as ELM, ChatGPT,
+% Bing Chat, Claude, Google Gemini, or any other automated assistance.
+% For all such material you must make prominent explicit acknowledgement and
+% explain clearly what you have done in the AI declaration section.
+% This includes using AI to directly generate text, code, figures or similar
+% or to complete other tasks. In all cases, you remain entirely responsible
+% for the material you produce.
+% ============================================================
+
+\usepackage{iclr2027_conference,times}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% The official ICLR archive includes math_commands.tex. It is optional:
+\input{math_commands.tex}
+
+\title{Your Project Title}
+
+% Keep this line unchanged.
+\author{Anonymous coursework submission}
+
+% Keep this COMMENTED OUT.
+% Review mode is part of the coursework format and is checked automatically.
+% \iclrfinalcopy
+
+\begin{document}
+
+\maketitle
+
+% Course-specific template fingerprint. Keep this line unchanged.
+\lhead{Under review as a report for UoE 26/27 Sem1 INFR11269: Machine Learning Systems}
+
+% Keep this COMMENTED OUT.
+% \begin{abstract}
+% \end{abstract}
+
+% ============================================================
+% REPORT CONTENT GUIDANCE
+
+% The structure below is RECOMMENDED, not mandatory.
+% You may rename, merge, split, or reorder sections if another structure
+% better communicates your investigation.
+
+% Regardless of section titles, the report should make it easy to find:
+%   1. the problem, motivation, and relevant system context;
+%   2. the supplied baseline and your substantive technical work;
+%   3. experimental methodology, metrics, and controlled comparisons;
+%   4. results covering task/system quality AND relevant system cost;
+%   5. analysis of why the results occur, limitations, and conclusions.
+% Well organized report would result in better scores.
+
+% Depth is preferred over implementing many unrelated features.
+% ============================================================
+
+\section{Introduction}
+\label{sec:introduction}
+
+Explain the system context and the technical question you investigate.
+Clarify why the question matters, what baseline you start from, what you change,
+and the main result or trade-off you observe.
+
+\section{System and Technical Approach}
+\label{sec:approach}
+
+Describe only the supplied components needed to understand your investigation,
+then explain what you completed, modified, or added. Make the technical question
+and design choices precise.
+
+\section{Experimental Methodology}
+\label{sec:methodology}
+
+Describe the data, baseline(s), metrics, hardware/software setup, experimental
+procedure, and controls needed to understand and reproduce your comparison.
+Your evaluation should include an appropriate quality/correctness measure and
+an appropriate systems-cost measure.
+
+\section{Results and Analysis}
+\label{sec:results}
+
+Present evidence for a small number of precise claims. Analyse why the observed
+behaviour occurs, including trade-offs, negative or unexpected results, and
+alternative explanations where relevant.
+
+\section{Discussion and Conclusion}
+\label{sec:conclusion}
+
+Summarise what was learned, the most important quality--cost trade-offs,
+limitations, and what you would change or investigate next.
+
+% References are excluded from the main-body page limit.
+\bibliography{references}
+\bibliographystyle{iclr2027_conference}
+
+% Put your Appendix here if needed. Comment out if you don't need it.
+\appendix
+\section{Appendix title}
+Appendix here. Please notice that reviewers are not obliged to read Appendix at all. Please put your main content in the main body.
+
+% Keep this line unchanged.
+\newpage
+
+% Academic integrity is an underlying principle of research and academic practice.
+% All submitted work is expected to be your own, including any material you have
+% generated yourself with the assistance of AI tools such as ELM, ChatGPT,
+% Bing Chat, Claude, Google Gemini, or any other automated assistance.
+% For all such material you must make prominent explicit acknowledgement and
+% explain clearly what you have done in this section.
+% This includes using AI to directly generate text, code, figures or similar
+% or to complete other tasks. In all cases, you remain entirely responsible
+% for the material you produce.
+\section*{AI declaration}
+Please acknowledge your use of AI here.
+
+% Please put the information of your group here without changing the format.
+% This page will be deleted when the report is distributed for reviewing.
+\section*{Group information}
+Group ID: XXX
+
+Information of group member A:
+\begin{itemize}
+    \item Name: John Doe
+    \item UUN: sXXXXXXX
+\end{itemize}
+
+% Keep this COMMENTED OUT, unless there is more than one member.
+% Information of group member B:
+% \begin{itemize}
+%     \item Name: John Doe
+%     \item UUN: sXXXXXXX
+% \end{itemize}
+
+% Keep this COMMENTED OUT, unless there is more than one member and you feel like
+% it is necessary to point out the contribution. Please notice that members from
+% the same group technically receive the same score for the report, regardless of
+% the contribution.
+% \section*{Contribution}
+
+\end{document}

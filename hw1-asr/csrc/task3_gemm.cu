@@ -18,6 +18,47 @@
 
 constexpr int TILE = 16;  // try 8 or 32 (32 x 32 = 1024 threads, the maximum per block)
 
+// Build the original tiled baseline with -DASR_TASK3_M1_ENABLED=0. Separate
+// build directories are required when changing these flags (see experiments/).
+#ifndef ASR_TASK3_M1_ENABLED
+#define ASR_TASK3_M1_ENABLED 1
+#endif
+#ifndef ASR_TASK3_M1_WARPS
+#define ASR_TASK3_M1_WARPS 4
+#endif
+static_assert(ASR_TASK3_M1_ENABLED == 0 || ASR_TASK3_M1_ENABLED == 1,
+              "ASR_TASK3_M1_ENABLED must be 0 or 1");
+static_assert(ASR_TASK3_M1_WARPS >= 1 && ASR_TASK3_M1_WARPS <= 32,
+              "ASR_TASK3_M1_WARPS must be between 1 and 32");
+
+#if ASR_TASK3_M1_ENABLED
+// M = 1 is a matrix-vector product, not a square output tile. Each warp
+// computes one output feature: adjacent lanes read adjacent K elements of a
+// contiguous weight row. The input vector is reused through the GPU caches.
+// There is no shared-memory staging or block-wide barrier on this path.
+__global__ void linear_m1_kernel(const float* x, const float* w, const float* bias,
+                                  float* y, int N, int K, int act) {
+  const int lane = threadIdx.x % WARP_SIZE;
+  const int warp = threadIdx.x / WARP_SIZE;
+  const int col = blockIdx.x * ASR_TASK3_M1_WARPS + warp;
+  // This condition is uniform within a warp, so every surviving warp still
+  // has all 32 lanes participating in the FULL_MASK shuffle below.
+  if (col >= N) return;
+
+  const float* wr = w + static_cast<size_t>(col) * K;
+  float acc = 0.0f;
+  for (int k = lane; k < K; k += WARP_SIZE) acc += x[k] * wr[k];
+  for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2)
+    acc += __shfl_down_sync(FULL_MASK, acc, offset);
+
+  if (lane == 0) {
+    if (bias != nullptr) acc += bias[col];
+    if (act == ACT_GELU) acc = gelu(acc);
+    y[col] = acc;
+  }
+}
+#endif
+
 __global__ void linear_tiled_kernel(const float* x, const float* w, const float* bias,
                                     float* y, int M, int N, int K, int act) {
   __shared__ float xs[TILE][TILE];      // xs[m][k]: rows of x for this block
@@ -74,6 +115,14 @@ __global__ void linear_tiled_kernel(const float* x, const float* w, const float*
 
 ASR_API int launch_linear(const float* x, const float* w, const float* bias, float* y,
                           int M, int N, int K, int act, cudaStream_t stream) {
+#if ASR_TASK3_M1_ENABLED
+  if (M == 1) {
+    linear_m1_kernel<<<ceil_div(N, ASR_TASK3_M1_WARPS),
+                       ASR_TASK3_M1_WARPS * WARP_SIZE, 0, stream>>>(
+        x, w, bias, y, N, K, act);
+    RETURN_LAUNCH_ERROR();
+  }
+#endif
   dim3 block(TILE, TILE);
   dim3 grid(ceil_div(N, TILE), ceil_div(M, TILE));
   linear_tiled_kernel<<<grid, block, 0, stream>>>(x, w, bias, y, M, N, K, act);
