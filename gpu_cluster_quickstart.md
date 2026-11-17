@@ -125,27 +125,33 @@ ASR_CUDA=all bash start_rag.sh python rag/scripts/run_audio_query.py --device cp
 ```
 
 两个脚本都应使用 `bash` 执行，不能 `source`。无参数时创建子 shell，环境配置
-仅作用于该 shell；退出不会修改原 GPU shell。脚本会检查 GPU、CUDA 编译器及
-本地 ASR 模型缓存，然后增量编译当前 GPU 的 ASR 库。RAG 还会执行
-`check_setup.py` 检查数据与 ELM 配置；启动本身不调用 ELM。
+仅作用于该 shell；退出不会修改原 GPU shell。脚本配置环境并增量编译当前 GPU
+的 ASR 库，启动本身不调用 ELM。需要检查 RAG 数据与 ELM 配置时，可手动运行
+`python rag/scripts/check_setup.py`。
 
 | 配置 | ASR | RAG |
 |---|---|---|
 | Python 环境 | `conda activate mls-asr` | 先激活 ASR 并保存解释器，再激活 `$HOME/mls-rag-env` |
-| `CUDA_HOME` / `PATH` | 默认 `/opt/cuda-12.8.0`，将其 `bin` 加入 `PATH` | 相同 |
-| `HF_HUB_OFFLINE` | 默认 `1`，使用 head node 下载的模型缓存 | 相同；不会阻止 ELM HTTP 请求 |
+| `PATH` | 将 `/opt/cuda-12.8.0/bin` 加入 `PATH` | 相同 |
+| `TMPDIR` | 创建并使用 `$HOME/cuda-tmp`，避免之前的 nvcc 预处理失败 | 相同 |
+| `NVCC_CCBIN` | `/usr/bin/g++`，显式指定 nvcc 的 host compiler | 相同 |
+| `HF_HUB_OFFLINE` | `1`，使用 head node 下载的模型缓存 | 相同；不会阻止 ELM HTTP 请求 |
 | `ASR_CUDA` | 默认 `all`，可设 `none` 或任务组 | 默认 `none`，验证 kernels 后可设 `all` |
 | `RAG_ASR_PYTHON` | 无需配置 | 自动设为 ASR 环境的 Python 绝对路径 |
 | `RAG_ASR_ROOT` | 无需配置 | 默认当前仓库的 `hw1-asr/` |
 | ELM 配置 | 无需配置 | 在 `rag/.env` 填写 `ELM_API_KEY`，保留示例端点和模型设置；Python 自动读取 |
 
-非默认安装路径可通过 `CONDA_BASE`、`ASR_ENV_NAME`、`CUDA_HOME` 和
-`RAG_ENV_DIR` 覆盖。脚本保留现有 `HF_HOME` 等缓存设置；准备模型和运行时
+Conda 和 RAG 环境的非默认安装路径可通过 `CONDA_BASE` 和 `RAG_ENV_DIR`
+覆盖。脚本保留现有 `HF_HOME` 等缓存设置；准备模型和运行时
 应使用相同的缓存位置。`HF_TOKEN` 不是已缓存模型离线运行的必需项。
 现有构建规则会处理 CUDA 测试的库路径，无需默认额外设置 `LD_LIBRARY_PATH`。
 不要手动覆盖 Slurm 设置的 `CUDA_VISIBLE_DEVICES`，尤其是 MIG allocation。
 RAG 示例的 `--device cpu` 只让查询编码器使用 CPU，ASR 仍在 GPU 上运行。
 答案生成需要 GPU 节点能够访问 ELM 服务。
+
+此前“排查 make 命令报错”的会话已验证：激活 `mls-asr` 后，设置
+`TMPDIR="$HOME/cuda-tmp"` 与 `NVCC_CCBIN=/usr/bin/g++` 即可成功编译。
+两个启动脚本均保留这组设置；当时未单独确定是哪一项导致原始报错。
 
 ## 7. 退出并释放资源
 
