@@ -4,6 +4,8 @@ import csv
 import io
 import json
 import math
+import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -110,6 +112,39 @@ class ExperimentTest(unittest.TestCase):
         steps = runner.make_steps(args, self.output, "90", variants, Path("/opt/cuda"))
         self.assertFalse(any(s.log.startswith("model/") for s in steps))
         self.assertEqual(sum(s.argv[-1] == "test" for s in steps), 2)
+
+    def test_compiler_preflight_precedes_variant_builds(self):
+        args = runner.parse_args(["--skip-model", "--variants", BASELINE])
+        variants = runner.make_variants(self.output, args.variants)
+        steps = runner.make_steps(args, self.output, "90", variants, Path("/opt/cuda"))
+        self.assertEqual([s.log for s in steps[:3]], [
+            "preflight/host_compiler.log", "preflight/host_preprocess.log", "preflight/nvcc_probe.log"])
+        self.assertEqual(steps[3].log, "build/tiled16.log")
+        self.assertIn("--verbose", steps[2].argv)
+        self.assertIn("--keep-dir", steps[2].argv)
+
+    def test_private_tmpdir_and_real_host_preprocessing(self):
+        compiler = shutil.which("g++") or shutil.which("clang++")
+        if compiler is None:
+            self.skipTest("No local C++ compiler; this test does not require CUDA")
+        (self.output / "source").mkdir()
+        with mock.patch.dict(os.environ, NVCC_CCBIN=compiler, TMPDIR="/nonexistent-scheduler-tmp"):
+            settings = runner.prepare_build_environment(self.output, self.output / "scratch")
+            self.assertEqual(settings["inherited_tmpdir"], "/nonexistent-scheduler-tmp")
+            self.assertTrue(Path(settings["tmpdir"]).is_dir())
+            self.assertEqual(os.environ["TMPDIR"], settings["tmpdir"])
+            first_tmpdir = settings["tmpdir"]
+            steps = runner.preflight_steps(self.output, "90", settings["host_compiler"])
+            with contextlib.redirect_stdout(io.StringIO()):
+                runner.run_step(steps[0], self.output)
+                runner.run_step(steps[1], self.output)
+            self.assertTrue((self.output / "preflight" / "host_probe.ii").is_file())
+            self.assertIn(first_tmpdir, (self.output / "preflight" / "host_preprocess.log").read_text())
+
+    def test_missing_host_compiler_rejected(self):
+        with mock.patch.dict(os.environ, NVCC_CCBIN="/nonexistent/compiler"), self.assertRaisesRegex(
+                RuntimeError, "Host compiler is not executable"):
+            runner.prepare_build_environment(self.output, self.output / "scratch")
 
     def test_token_ids_checked_even_if_text_matches(self):
         with self.assertRaisesRegex(ValueError, "token IDs"):
@@ -256,8 +291,11 @@ class ExperimentTest(unittest.TestCase):
                     mock.patch.object(runner.subprocess, "check_output", return_value="fixture\n"), \
                     mock.patch.object(runner, "run_step", side_effect=fake_step), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                before_env = {key: os.environ.get(key) for key in ("TMPDIR", "NVCC_CCBIN")}
                 code = runner.main(["--output", str(target), "--skip-model", "--no-telemetry",
+                                    "--cuda-tmpdir", str(self.output / "scratch"),
                                     "--variants", BASELINE, "rb2x2", "--repeats", "2"])
+                self.assertEqual({key: os.environ.get(key) for key in before_env}, before_env)
             self.assertEqual(code, 1 if fail else 0)
             state = json.loads((target / "metadata.json").read_text())["status"]
             self.assertEqual(state, "failed" if fail else "complete")
@@ -265,6 +303,27 @@ class ExperimentTest(unittest.TestCase):
             self.assertEqual((target / "FAILED.txt").exists(), fail)
             self.assertTrue((target / "source_sha256.json").exists())
             self.assertNotIn(b"\r", (target / "cases.csv").read_bytes())
+
+    def test_nvcc_probe_failure_stops_before_task_builds(self):
+        target, logs = self.output / "probe_failure", []
+
+        def fake_step(step, output):
+            logs.append(step.log)
+            if step.log == "preflight/nvcc_probe.log":
+                raise RuntimeError("synthetic nvcc host compiler preprocessor failure")
+
+        with mock.patch.object(runner.shutil, "which", return_value="/opt/cuda/bin/nvcc"), \
+                mock.patch.object(runner, "gpu_info", return_value=dict(name="offline fixture", sm="90")), \
+                mock.patch.object(runner.platform, "platform", return_value="offline"), \
+                mock.patch.object(runner.subprocess, "check_output", return_value="fixture\n"), \
+                mock.patch.object(runner, "run_step", side_effect=fake_step), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = runner.main(["--output", str(target), "--skip-model", "--no-telemetry",
+                                "--cuda-tmpdir", str(self.output / "scratch"), "--variants", BASELINE])
+        self.assertEqual(code, 1)
+        self.assertFalse(any(log.startswith("build/") for log in logs))
+        self.assertFalse((target / "summary.md").exists())
+        self.assertEqual(json.loads((target / "metadata.json").read_text())["status"], "failed")
 
 
 if __name__ == "__main__":

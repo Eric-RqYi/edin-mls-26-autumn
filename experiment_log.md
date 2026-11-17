@@ -1,4 +1,23 @@
 
+### 17-Nov-2026: GEMM build failure and compiler-environment fix
+
+- Run `20261117T171901Z-590775` stopped in the first tiled16 build, while compiling
+  Task 1/2: `nvcc fatal: Failed to preprocess host compiler properties`. No new
+  Task 3 compilation, correctness result or timing was reached.
+- The batch entry omitted the TMPDIR configuration present in `start_asr.sh`.
+  The quickstart records that `TMPDIR=$HOME/cuda-tmp` plus `/usr/bin/g++` had
+  previously compiled successfully; it did not isolate the two settings. The
+  failed run did not record TMPDIR, so its exact underlying cause is unconfirmed.
+- Aligned both sbatch and direct Python execution with that setup, using a
+  private nvcc scratch directory per run. Record inherited/effective TMPDIR and
+  compiler, and restore the caller's Python environment on exit.
+- Added host compiler version/preprocessing and minimal CUDA compile preflights
+  before variant builds, with verbose nvcc output and retained intermediates.
+- Local validation: 22 tool tests passed, including actual local C++ preprocessing,
+  environment restoration and early-stop regression checks; sbatch syntax and
+  dry-run passed. Actual nvcc/GPU validation still requires a new cluster run.
+- Original failed-run logs and frozen sources were preserved.
+
 ### 17-Nov-2026: Next-round M>1 GEMM experiments (prepared offline)
 
 - Added configurable TILE=8/16/32 and register-blocked 2x2/2x4/4x4 output-per-thread

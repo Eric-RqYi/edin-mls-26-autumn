@@ -14,6 +14,8 @@ sbatch --gres=gpu:h200_1g.18gb:1 experiments/task3_gemm/run_cluster.sbatch --san
 
 脚本申请 2 CPU、16 GB CPU 内存、1 小时。可在 sbatch 命令中覆盖时限。默认 conda 位于 `~/miniconda3`，不同位置在提交前设置 `CONDA_BASE`；默认 `NVCC_CCBIN=/usr/bin/g++`，可用已有环境变量覆盖。计算节点使用本地模型 cache，不下载模型。
 
+批处理和直接 Python 入口均使用此前集群已验证的 `~/cuda-tmp` 作为 nvcc 临时目录的根，每次运行在其下创建私有子目录，覆盖调度器继承的 `TMPDIR`。可用 `--cuda-tmpdir /absolute/path` 或 `ASR_CUDA_TMPDIR` 改变根目录（命令行优先）。运行信息记录原始/实际 TMPDIR 和 host compiler，退出 Python runner 时恢复调用前的环境变量。
+
 先只验证内核、不加载模型：
 
 ```bash
@@ -83,7 +85,7 @@ acc[i][j] += X[row, k] * W[col, k]
 ## 4. 每次运行的流程
 
 1. 记录可见 GPU/MIG、编译器、软件版本、参数和 Git 状态标识，复制源码并生成 SHA256 清单。后续构建、模型调用和测试均使用冻结的源码快照。
-2. 构建六个版本，各自运行未修改的完整课程 `make test`；任何失败立即停止。
+2. 先记录 host compiler 版本，执行普通 C++ 预处理，再用 nvcc 编译一个最小 CUDA 文件（只编译，不做 GPU 计算），保存 verbose 日志及中间文件。通过后构建六个版本，各自运行未修改的完整课程 `make test`；任何失败立即停止。
 3. 运行额外的 22 个 case。覆盖 M=1 控制组、奇数/尾部、K=1/7/31/33/129、bias/GELU、decoder M=59/64/71、N=512 的 K/V projection、encoder fc1/fc2、两次卷积和 projector。
 4. 小工作量 case 对 CPU double reference，大 case 对 `CUBLAS_PEDANTIC_MATH` FP32 reference，误差沿用原测试 `atol=rtol=1e-3`。cuBLAS 仅用于实验参考，不进入任务实现。额外测试使用非默认 CUDA stream，并检查输出尾部 guard。
 5. 指定 `--sanitizer` 时，对小 case 运行 memcheck、racecheck、synccheck。每种工具报告错误都使作业返回非零；这不代表大 case 也接受了 sanitizer。
@@ -100,6 +102,7 @@ acc[i][j] += X[row, k] * W[col, k]
 | 文件 | 用途 |
 |---|---|
 | `metadata.json`、`gpu.log`、`nvcc.log` | 参数、设备、编译器和运行状态 |
+| `preflight/*.log`、`preflight/keep/` | host compiler 版本、普通 C++ 预处理、最小 CUDA 编译的 verbose 诊断与中间文件 |
 | `source/`、`source_sha256.json` | 实际执行/编译的源码快照与校验值 |
 | `cases.csv` | 本次微基准的形状与 epilogue 清单 |
 | `build/*.log`、`tests/*.log` | ptxas registers/spill/shared-memory 信息和完整课程测试 |
@@ -135,6 +138,12 @@ python experiments/task3_gemm/results.py experiments/task3_gemm/results/具体�
 ```
 
 只指定 `--skip-model` 时没有完整模型与 shape profile；汇总会明确标记这个限制。默认只测课程测试音频，逐 token 一致不构成数据集范围的 WER/CER 结论。实际 CUDA 编译、正确性与性能仍须在 cluster 验证。
+
+### Host compiler 预处理失败
+
+`20261117T171901Z-590775` 在首个版本构建 Task 1/2 时报告 `Failed to preprocess host compiler properties`，尚未到 Task 3 或数值测试。旧批处理脚本漏掉了启动脚本中已有的 TMPDIR 设置；旧日志未记录实际 TMPDIR，不能由这一条 fatal 信息唯一确定底层原因。
+
+当前脚本已补齐已验证的 TMPDIR/host compiler 配置，并提前检查普通 C++ 与 CUDA 编译。同步修复后用原 sbatch 命令重新提交即可，生成新的结果目录；不要编辑旧失败目录的源码快照。若编译仍失败，`preflight/host_preprocess.log` 与 `preflight/nvcc_probe.log` 会保留更直接的错误、实际编译器命令和临时路径。参考：[nvcc 临时目录与 host compiler 环境变量](https://docs.nvidia.com/cuda/archive/12.8.0/cuda-compiler-driver-nvcc/index.html)。
 
 ## 6. 本地离线检查
 

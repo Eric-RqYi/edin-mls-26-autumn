@@ -14,6 +14,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,6 +38,8 @@ def parse_args(argv=None):
     parser.add_argument("--variants", nargs="+", choices=VARIANTS, default=list(VARIANTS))
     parser.add_argument("--sm", help="Explicit architecture, required for offline dry-run")
     parser.add_argument("--jobs", type=int, default=2)
+    parser.add_argument("--cuda-tmpdir", type=Path,
+                        help="Base for private nvcc temporary files (default: ASR_CUDA_TMPDIR or ~/cuda-tmp)")
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--iterations", type=int, default=20)
     parser.add_argument("--repeats", type=int, default=7)
@@ -69,10 +72,26 @@ def make_variants(output, names):
                  library=str(output / "build" / name / "libasr_kernels.so")) for name in names]
 
 
+def preflight_steps(output, sm, host_compiler):
+    probe = output / "preflight"
+    return [
+        Step("preflight/host_compiler.log", [host_compiler, "--version"]),
+        Step("preflight/host_preprocess.log", [
+            host_compiler, "-std=c++17", "-E", "-x", "c++", str(probe / "host_probe.cpp"),
+            "-o", str(probe / "host_probe.ii"),
+        ]),
+        Step("preflight/nvcc_probe.log", [
+            "nvcc", *shlex.split(FLAGS), f"-arch=sm_{sm}", "--verbose", "--keep",
+            "--keep-dir", str(probe / "keep"), "-c", str(probe / "cuda_probe.cu"),
+            "-o", str(probe / "cuda_probe.o"),
+        ]),
+    ]
+
+
 def make_steps(args, output, sm, variants, cuda_root):
     source = output / "source"
     experiment = source / "experiment"
-    steps = []
+    steps = preflight_steps(output, sm, os.environ.get("NVCC_CCBIN") or "/usr/bin/g++")
     for variant in variants:
         make = ["make", f"SM={sm}", f"BUILD={variant['build']}",
                 f"SRC={source / 'csrc'}", f"NVCCFLAGS={variant['flags']}"]
@@ -120,6 +139,8 @@ def run_step(step, output):
     env = dict(os.environ, ASR_DEBUG="0", CUDA_LAUNCH_BLOCKING="0", **step.env)
     with path.open("w") as log:
         log.write(f"Command: {display}\n")
+        log.write(f"TMPDIR: {env.get('TMPDIR', '<unset>')}\n")
+        log.write(f"NVCC_CCBIN: {env.get('NVCC_CCBIN', '<unset>')}\n")
         log.flush()
         with subprocess.Popen(step.argv, cwd=output / "source", env=env, stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT, text=True, bufsize=1) as process:
@@ -160,6 +181,37 @@ def snapshot(output):
     hashes = {str(path.relative_to(source)): hashlib.sha256(path.read_bytes()).hexdigest()
               for path in sorted(source.rglob("*")) if path.is_file()}
     (output / "source_sha256.json").write_text(json.dumps(hashes, indent=2) + "\n")
+
+
+def prepare_build_environment(output, requested_tmpdir=None):
+    """Match the working cluster setup; callers restore these two env variables."""
+    inherited_tmpdir = os.environ.get("TMPDIR")
+    base = requested_tmpdir or Path(os.environ.get("ASR_CUDA_TMPDIR") or Path.home() / "cuda-tmp")
+    base = Path(base).expanduser().resolve()
+    base.mkdir(parents=True, exist_ok=True)
+    # Never share nvcc scratch files across simultaneous jobs. Keep this directory
+    # for diagnosis; do not delete caller-provided scratch roots or old run data.
+    tmpdir = Path(tempfile.mkdtemp(prefix="task3-gemm-", dir=base))
+    host_compiler = os.environ.get("NVCC_CCBIN") or "/usr/bin/g++"
+    candidate = Path(host_compiler).expanduser()
+    if candidate.is_dir():
+        host_compiler = str(candidate / "g++")
+    else:
+        host_compiler = str(candidate)
+    found = shutil.which(host_compiler)
+    if found is None:
+        raise RuntimeError(f"Host compiler is not executable: {host_compiler}; set NVCC_CCBIN to the compiler path")
+    # Preserve the driver name (e.g. g++) rather than resolving a compiler symlink.
+    host_compiler = str(Path(found).absolute())
+    os.environ.update(TMPDIR=str(tmpdir), NVCC_CCBIN=host_compiler)
+    probe = output / "preflight"
+    (probe / "keep").mkdir(parents=True)
+    (probe / "host_probe.cpp").write_text("#include <cstddef>\nint probe() { return sizeof(void*); }\n")
+    (probe / "cuda_probe.cu").write_text(
+        "#include <cuda_runtime.h>\n"
+        "__global__ void probe(float* value) { if (threadIdx.x == 0) value[0] = 1.0f; }\n")
+    return dict(tmpdir=str(tmpdir), tmpdir_base=str(base), inherited_tmpdir=inherited_tmpdir,
+                host_compiler=host_compiler)
 
 
 def telemetry_start(output):
@@ -205,6 +257,8 @@ def main(argv=None):
     cuda_root = Path(nvcc).resolve().parent.parent if nvcc else Path("/opt/cuda-12.8.0")
     variants = make_variants(output, args.variants)
     if args.dry_run:
+        tmp_base = args.cuda_tmpdir or os.environ.get("ASR_CUDA_TMPDIR") or Path.home() / "cuda-tmp"
+        print(f"[build environment] private TMPDIR under {tmp_base}; no directory is created by dry-run")
         for step in make_steps(args, output, args.sm, variants, cuda_root):
             print(f"[{step.log}] {shlex.join(step.argv)}")
             if step.env:
@@ -212,6 +266,7 @@ def main(argv=None):
         return 0
 
     created, telemetry, meta = False, None, None
+    original_env = {key: os.environ.get(key) for key in ("TMPDIR", "NVCC_CCBIN")}
     try:
         if output.exists():
             raise FileExistsError(f"Refusing to overwrite {output}")
@@ -241,6 +296,9 @@ def main(argv=None):
                 meta[key] = "unavailable"
         (output / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
         snapshot(output)
+        meta["build_environment"] = prepare_build_environment(output, args.cuda_tmpdir)
+        meta["nvcc_ccbin"] = os.environ["NVCC_CCBIN"]
+        (output / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
         with (output / "cases.csv").open("w", newline="") as handle:
             writer = csv.writer(handle, lineterminator="\n")
             writer.writerow(CASE_FIELDS)
@@ -273,10 +331,17 @@ def main(argv=None):
                 meta.update(status="failed", error=str(error))
         return 1
     finally:
-        if telemetry:
-            meta["telemetry"] = telemetry_stop(telemetry, output)
-        if created and meta and meta["status"] == "failed":
-            (output / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
+        try:
+            if telemetry:
+                meta["telemetry"] = telemetry_stop(telemetry, output)
+            if created and meta and meta["status"] == "failed":
+                (output / "metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
+        finally:
+            for key, value in original_env.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
 
 if __name__ == "__main__":
