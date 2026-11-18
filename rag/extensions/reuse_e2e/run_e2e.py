@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Frozen multi-audio experiment. Default mode prints a plan and makes no API call."""
-import argparse,datetime as dt,hashlib,json,os,shlex,shutil,subprocess,sys,time
+import argparse,datetime as dt,hashlib,importlib.metadata,json,os,platform,shlex,shutil,subprocess,sys,time
 from pathlib import Path
 from design import freeze,schedule,variants,sha,canonical
 HERE=Path(__file__).resolve().parent;RAG=HERE.parents[1];REPO=RAG.parent;HW=REPO/'hw1-asr'
@@ -90,7 +90,11 @@ def main(argv=None):
         gpu=gpu_info(a.asr_python)
         if a.sm and a.sm!=gpu['sm']:raise ValueError('Requested SM differs from GPU')
         snapshot(out)
-        meta=dict(schema=1,status='building',mode=a.mode,variants=vv,gpu=gpu,k=5,encoder_device='cpu',temperature=.1,
+        versions={}
+        for package in ('numpy','torch','openai','sentence-transformers','python-dotenv'):
+            try:versions[package]=importlib.metadata.version(package)
+            except importlib.metadata.PackageNotFoundError:versions[package]='unavailable'
+        meta=dict(schema=1,software=dict(python=sys.version,platform=platform.platform(),packages=versions),status='building',mode=a.mode,variants=vv,gpu=gpu,k=5,encoder_device='cpu',temperature=.1,
                   seed=21,rounds=3,diagnostics_expected=2*len({r['stratum'] for r in cohort['items']}),sample_manifest_sha256=cohort['manifest_sha256'],plan_sha256=hashlib.sha256(canonical(plan).encode()).hexdigest(),
                   api_budget=2 if a.mode=='check' else len(plan)+4,sdk_max_retries=0,
                   endpoint=os.environ.get('ELM_BASE_URL',os.environ.get('OPENAI_BASE_URL','https://elm.edina.ac.uk/api/v1')),
