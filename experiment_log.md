@@ -1,3 +1,58 @@
+### 17-Nov-2026: Attention sweep and GEMM-dispatch factorial (prepared offline)
+
+- Added independent `ASR_ATTN_WARPS` and `ASR_ATTN_ONLINE_MODE` controls in
+  Task 4. The direct recurrence avoids duplicate probability exponentials;
+  all-masked query rows explicitly output zero, with shared-memory padding
+  and uniform tile-loop barriers retained. Default stays w4/standard.
+- Added opt-in `ASR_TASK3_HYBRID_KV`: M>1, N=512, K=2048 uses tiled32 after
+  the dedicated M=1 branch; other shapes use the configured GEMM path.
+- New `experiments/task4_attention/run_cluster.sbatch` runs a ten-configuration
+  warp/softmax sweep, then a four-group hybrid x selected-attention confirmation.
+  All experiment variants fix rb4x4 and M=1/w4. Sweep defaults to microbenchmarks;
+  factorial defaults to three paired-model processes with ten rounds each.
+- Added 14 independent-reference attention cases, including GQA/cache, tails,
+  late maxima, peaked scores and fully masked prefixes; factorial also runs
+  33 GEMM cases with held-out M and neighboring N/K controls. Unchanged coursework
+  tests run for every library; small-case sanitizer checks are optional.
+- Linear and attention shape profiles now reuse the original ops events, with
+  attention stages/shapes and schema v2 saved in model JSON. The new summary
+  rejects mismatched event sums/call counts and checks every timed token sequence.
+  All slow samples remain, with >5% and >2x diagnostic flags and paired interaction
+  effects for the four-group comparison.
+- Reused the validated host-compiler/TMPDIR preflights, frozen source hashes,
+  separate builds, shuffled measurements, telemetry and failure-state handling.
+- Offline validation: 17 attention-tool tests, 23 GEMM-tool tests and 17 M=1-tool
+  tests passed; Bash syntax and dry-run checks passed. Actual CUDA compilation,
+  numerical correctness, sanitizer output and speedups remain pending cluster
+  execution. No experimental configuration was made the production default.
+
+### 17-Nov-2026: Completed M>1 GEMM run and analysis
+
+Run: `hw1-asr/experiments/task3_gemm/results/20261117T192802Z-615737`.
+Hardware: metadata, GPU/test/sanitizer logs, build targets and telemetry identify
+H200 MIG 1g.18gb (sm_90, 16 SMs). The user confirmed that analysis should use
+these saved logs; this run is analyzed and reported as H200 MIG.
+
+- Complete coverage: 924 micro samples, 210 model samples, six variants passing
+  all coursework tasks, small-case memcheck/racecheck/synccheck clean, 28 frozen
+  source hashes matching. Exact token IDs agree on every timed generation.
+- rb4x4: ASR median 3381.82 ms versus tiled16 5942.23 ms; latency reduced 43.09%,
+  median block-paired speedup 1.75714x. All three block ratios agree closely.
+- Linear profile falls from 4923.24 to 2363.45 ms, saving 2559.79 ms, versus
+  2560.42 ms measured model-median saving. Attention remains about 996 ms.
+- Encoder matrices gain about 2.7x. Decoder narrow-N K/V prefers tiled32;
+  diagnostic hybrid dispatch estimates only about 37 ms (1.1%) extra headroom
+  among tested candidates, requiring a direct model comparison to validate.
+- After rb4x4, linear/attention shares are about 69.85%/29.44%. Next main target:
+  encoder attention warp-count and online-softmax experiments; hybrid GEMM
+  dispatch is a small secondary ablation.
+- Preserve tails: rb2x4 has a 6480.18 ms sample (about 1.706x its block median)
+  despite the old >2x slow flag being zero. Diagnostic GPU-event boundaries also
+  differ, so shape-profile estimates are not pure kernel measurements.
+
+Full analysis and next plan: `analysis/analysis_and_next_plan.md` inside this run.
+Audit/derived metrics and supporting tables are in the same analysis directory.
+No kernel defaults or original measurements were changed during analysis.
 
 ### 17-Nov-2026: GEMM build failure and compiler-environment fix
 

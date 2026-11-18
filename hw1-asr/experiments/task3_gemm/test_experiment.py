@@ -243,33 +243,66 @@ class ExperimentTest(unittest.TestCase):
             def numel(self): return math.prod(self.shape)
 
         class Event:
-            def record(self): pass
             def elapsed_time(self, end): return .25
 
-        ops = SimpleNamespace(linear=lambda x, weight, bias=None, act=None: x)
-        original = ops.linear
+        ops = SimpleNamespace(_profile=[])
+
+        def record(operation, x):
+            ops._profile.append((operation, "cuda", Event(), Event()))
+            return x
+
+        ops.linear = lambda x, weight, bias=None, act=None: record("linear", x)
+        ops.attention = lambda q, k, v, causal: record("attention", q)
+        original, original_attention = ops.linear, ops.attention
 
         class Model:
             c = SimpleNamespace(vocab=59264, text_hidden=2048)
             def encode_audio(self):
+                q = Tensor((1, 1500, 20, 64))
+                ops.attention(q, q, q, False)
                 return ops.linear(Tensor((1500, 1280)), Tensor((1280, 1280)))
             def next_token_probs(self):
+                q, kv = Tensor((1, 5, 16, 128)), Tensor((1, 37, 4, 128))
+                ops.attention(q, kv, kv, True)
                 ops.linear(Tensor((64, 2048)), Tensor((2048, 2048)))
                 return ops.linear(Tensor((1, 2048)), Tensor((59264, 2048)))
 
         model = Model()
-        torch = SimpleNamespace(cuda=SimpleNamespace(Event=lambda **kw: Event(), synchronize=lambda: None))
+        # Allocating another layer of CUDA events would recreate the old boundary mismatch.
+        extra_event = mock.Mock(side_effect=AssertionError("Unexpected extra CUDA event"))
+        torch = SimpleNamespace(cuda=SimpleNamespace(Event=extra_event, synchronize=lambda: None))
         with ShapeProfiler(model, ops, torch) as profiler:
             model.encode_audio()
             model.next_token_probs()
         self.assertIs(ops.linear, original)
+        self.assertIs(ops.attention, original_attention)
         self.assertNotIn("encode_audio", vars(model))
         self.assertEqual({r["phase"] for r in profiler.rows()}, {"encoder", "decoder", "lm_head"})
+        self.assertEqual({r["phase"] for r in profiler.attention_rows()}, {"encoder", "decoder"})
+        for records, operation in ((profiler.events, "linear"), (profiler.attention_events, "attention")):
+            original_events = [(s, e) for op, _, s, e in ops._profile if op == operation]
+            self.assertEqual([(s, e) for _, s, e in records], original_events)
+        self.assertEqual(sum(r["gpu_event_ms"] for r in profiler.rows()), .75)
+        self.assertEqual(sum(r["gpu_event_ms"] for r in profiler.attention_rows()), .5)
+        extra_event.assert_not_called()
         with self.assertRaises(RuntimeError):
             with ShapeProfiler(model, ops, torch):
                 raise RuntimeError("fixture")
         self.assertIs(ops.linear, original)
+        self.assertIs(ops.attention, original_attention)
         self.assertNotIn("next_token_probs", vars(model))
+
+    def test_profile_requires_one_original_event_per_call(self):
+        for records, added in ((None, 0), ([], 0), ([], 2)):
+            ops = SimpleNamespace(_profile=records)
+            profiler = ShapeProfiler(None, ops, None)
+
+            def call():
+                if ops._profile is not None:
+                    ops._profile.extend([("linear", "cuda", None, None)] * added)
+
+            with self.assertRaises(RuntimeError):
+                profiler.recorded_call("linear", call)
 
     def test_offline_orchestration_success_and_failure(self):
         for fail in (False, True):

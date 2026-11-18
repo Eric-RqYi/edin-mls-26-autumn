@@ -92,10 +92,10 @@ acc[i][j] += X[row, k] * W[col, k]
 6. 微基准每个样本预热 5 次、以 CUDA events 计时 20 次调用的均值，重复 7 轮，每轮随机打乱候选顺序。保存实际执行顺序。
 7. 完整模型默认 3 个独立进程，每个进程加载一次权重。在每个进程中预热各版本，之后做 10 轮计时，每轮随机交错六个 CUDA 版本和 PyTorch reference。各版本使用同一份权重；通过原 `ops.py` 的 ctypes 接口切换库，保留全部库句柄。
 8. 每次 warmup/计时/诊断生成均检查原始 token IDs 与 tiled16 reference 一致，转写与 expected 规范化后一致。每轮保存 token IDs、所选概率、wall time、CPU user/system 时间、上下文切换计数、UTC 时间和 allocated GPU memory 峰值。
-9. 另做诊断生成，按 encoder/decoder/lm_head、`(M,N,K,bias,act)` 聚合 linear 事件时间与调用次数，并记录原算子级 profile。包装器仅在独立实验进程中生效，退出诊断上下文时恢复。检查所有 linear 调用均被覆盖。
+9. 另做诊断生成，按 encoder/decoder/lm_head、`(M,N,K,bias,act)` 聚合 linear 事件时间与调用次数，并记录原算子级 profile。当前包装器关联原 `ops._timed` 的事件，不额外创建外层 events；同时记录 attention 阶段和形状，JSON 标记 `profile_schema=2`。包装器仅在独立实验进程中生效，退出时恢复；检查 linear/attention 调用均被覆盖。旧结果目录的冻结版本仍保留原先的外层计时边界。
 10. 保留原 `benchmark.py` 对 baseline 的输出，供与课程工具核对；该次运行不混入交错样本。
 
-课程原 `Makefile`、tests、`ops.py`、`model.py`、`benchmark.py` 和 `provided.cu` 均保持不变。核心修改只在 Task 3 文件内；默认不改 Task 4。
+课程原 `Makefile`、tests、`ops.py`、`model.py`、`benchmark.py` 和 `provided.cu` 均保持不变。本实验维持 Task 4 默认配置；后续 attention 消融与 hybrid GEMM 对照入口见 `../task4_attention/README.md`。
 
 ## 5. 结果与计时含义
 
@@ -110,7 +110,7 @@ acc[i][j] += X[row, k] * W[col, k]
 | `micro.csv`、`micro_summary.csv` | 全部微基准样本、误差、GFLOP/s、配对 speedup 和波动 |
 | `model/blockN.samples.jsonl` | 运行时逐条落盘的模型样本；中断后也可定位到已完成的轮次 |
 | `model/blockN.json` | 完整独立进程的样本、reference、算子与形状 profile |
-| `model_samples.csv` | 所有模型样本和诊断计数，保留慢样本并标记超过本 block 中位数两倍者 |
+| `model_samples.csv` | 所有模型样本和诊断计数，保留慢样本并分别标记超过本 block 中位数 5% 与两倍者 |
 | `model_blocks.csv`、`model_summary.csv` | 每 block 和总体的 median/mean/IQR/stddev/max 与加速比 |
 | `operation_profiles.csv` | 每个算子的诊断 profile 汇总 |
 | `linear_shapes.csv` | 每个阶段、真实形状的调用次数、总时间和逐调用时间 |
@@ -125,7 +125,7 @@ acc[i][j] += X[row, k] * W[col, k]
 
 模型 wall time 使用原 `ops.wall_clock_ms`，不含模型加载和音频预处理，包含生成中的 CPU/Python 开销；数据验证和落盘在计时区外。每轮与同 block、同轮 tiled16 的时间相除，再取每个 block 的配对加速比中位数；最终报告这些 block 中位数的中位数。三个进程仍在一次 allocation 中，不能当作三种独立硬件环境，也不能把 30 个相关样本包装成 30 次独立实验。
 
-形状/算子 profile 是计时之外的诊断推理，GPU-event span 包括分配与 launch glue，包装器也有开销。不要直接把它当成无开销 kernel 时间；与微基准和正常 wall time 联合解释。CPU/context-switch 计数只是诊断线索，不能独自证明慢样本的原因。
+形状/算子 profile 是计时之外的诊断推理。当前包装器复用原算子 events，GPU-event span 仍包括原算子内的分配与 launch glue；诊断包装器本身也会扰动执行。旧结果的外层 shape events 与原算子计时边界不同，不能混用两种 schema 的耗时。与微基准和正常 wall time 联合解释；CPU/context-switch 计数只是诊断线索，不能独自证明慢样本的原因。
 
 telemetry 为 best-effort：`metadata.json` 记录 captured/unavailable。查询可能包含节点的多张物理 GPU，需要结合 `gpu.log` 的父 GPU UUID 对齐；它不是 per-MIG 利用率，也不会修改共享 GPU 时钟。UTC 时间可与模型样本对照。命令不可用/字段不支持时原错误仍留在日志中。
 

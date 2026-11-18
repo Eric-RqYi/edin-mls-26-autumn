@@ -30,7 +30,7 @@ def normalize(text):
 
 def validate_output(tokens, probabilities, transcript, reference, expected):
     if tokens != reference:
-        raise ValueError("Generated token IDs differ from the tiled16 reference")
+        raise ValueError("Generated token IDs differ from the baseline reference")
     if len(tokens) != len(probabilities) or not tokens:
         raise ValueError("Missing tokens/probabilities")
     if any(not math.isfinite(p) or not 0 <= p <= 1 for p in probabilities):
@@ -40,15 +40,28 @@ def validate_output(tokens, probabilities, transcript, reference, expected):
 
 
 class ShapeProfiler:
-    """Temporary instance/module wrappers; restored even if generation raises."""
+    """Associate shapes with original ops events, without creating extra events."""
 
     def __init__(self, model, ops, torch):
         self.model, self.ops, self.torch = model, ops, torch
         self.phase = "other"
         self.events = []
+        self.attention_events = []
+
+    def recorded_call(self, operation, function, *args):
+        records = self.ops._profile
+        if records is None:
+            raise RuntimeError("Shape profiling requires ops.profile_start()")
+        index = len(records)
+        result = function(*args)
+        if self.ops._profile is not records or len(records) != index + 1 or records[index][0] != operation:
+            raise RuntimeError(f"Expected one original {operation} timing record")
+        _, _, start, end = records[index]
+        return result, start, end
 
     def __enter__(self):
         self.original_linear = self.ops.linear
+        self.original_attention = self.ops.attention
         self.saved = {}
         for name, phase in (("encode_audio", "encoder"), ("next_token_probs", "decoder")):
             self.saved[name] = (name in vars(self.model), vars(self.model).get(name))
@@ -71,19 +84,24 @@ class ShapeProfiler:
                     and K == self.model.c.text_hidden):
                 phase = "lm_head"
             key = (phase, M, N, K, int(bias is not None), int(act == "gelu"))
-            start = self.torch.cuda.Event(enable_timing=True)
-            end = self.torch.cuda.Event(enable_timing=True)
-            start.record()
-            y = self.original_linear(x, weight, bias, act)
-            end.record()
+            y, start, end = self.recorded_call("linear", self.original_linear, x, weight, bias, act)
             self.events.append((key, start, end))
             return y
 
+        def attention(q, k, v, causal):
+            batch, seq_q, heads, dim = map(int, q.shape)
+            key = (self.phase, batch, heads, int(k.shape[2]), seq_q, int(k.shape[1]), dim, int(causal))
+            y, start, end = self.recorded_call("attention", self.original_attention, q, k, v, causal)
+            self.attention_events.append((key, start, end))
+            return y
+
         self.ops.linear = linear
+        self.ops.attention = attention
         return self
 
     def __exit__(self, exc_type, exc, traceback):
         self.ops.linear = self.original_linear
+        self.ops.attention = self.original_attention
         for name, (existed, value) in self.saved.items():
             if existed:
                 setattr(self.model, name, value)
@@ -101,6 +119,16 @@ class ShapeProfiler:
             rows.append(dict(zip(("phase", "M", "N", "K", "bias", "act"), key),
                              calls=calls, gpu_event_ms=ms, mean_ms=ms / calls))
         return sorted(rows, key=lambda row: -row["gpu_event_ms"])
+
+    def attention_rows(self):
+        self.torch.cuda.synchronize()
+        groups = defaultdict(lambda: [0, 0.0])
+        for key, start, end in self.attention_events:
+            groups[key][0] += 1
+            groups[key][1] += start.elapsed_time(end)
+        fields = ("phase", "batch", "num_heads", "num_kv_heads", "seq_q", "seq_k", "head_dim", "causal")
+        return sorted([dict(zip(fields, key), calls=calls, gpu_event_ms=ms, mean_ms=ms / calls)
+                       for key, (calls, ms) in groups.items()], key=lambda row: -row["gpu_event_ms"])
 
 
 def atomic_json(path, data):
@@ -121,8 +149,9 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     meta = json.loads(args.manifest.read_text())
     variants = meta["variants"]
-    if not variants or variants[0]["name"] != BASELINE:
-        parser.error("Manifest must start with tiled16")
+    baseline = meta.get("baseline", BASELINE)
+    if not variants or variants[0]["name"] != baseline:
+        parser.error("Manifest must start with the configured baseline")
     os.environ.update(HF_HUB_OFFLINE="1", ASR_DEBUG="0", CUDA_LAUNCH_BLOCKING="0")
     sys.path.insert(0, str(args.hw_root))
     import torch
@@ -143,7 +172,7 @@ def main():
         if name != "torch":
             ops._lib = libraries[name]  # retain every handle until process exit
 
-    activate(BASELINE)
+    activate(baseline)
     use_cache_if_present(MODEL_NAME)
     (model, processor), load_ms = ops.wall_clock_ms(load_model)
     audio = read_wav(args.hw_root / "test_audio.wav")
@@ -202,7 +231,7 @@ def main():
                 print(f"block={args.block} round={round_id} {name}: {ms:.3f} ms ({len(tokens)} tokens)", flush=True)
 
     # Separate diagnostic generations: none of their timings enter samples above.
-    profiles, shapes = [], []
+    profiles, shapes, attention_shapes = [], [], []
     for name in names:
         activate(name)
         with ShapeProfiler(model, ops, torch) as profiler:
@@ -219,10 +248,16 @@ def main():
                 calls for (op, _), (calls, _) in operation_table.items() if op == "linear"):
             raise ValueError("Shape profile did not cover every linear call")
         shapes.extend(dict(block=args.block, variant=name, **row) for row in shape_rows)
+        attention_rows = profiler.attention_rows()
+        if sum(r["calls"] for r in attention_rows) != sum(
+                calls for (op, _), (calls, _) in operation_table.items() if op == "attention"):
+            raise ValueError("Shape profile did not cover every attention call")
+        attention_shapes.extend(dict(block=args.block, variant=name, **row) for row in attention_rows)
     atomic_json(args.output, dict(
         status="complete", block=args.block, seed=meta["seed"], model_load_ms=load_ms,
         variants=names, reference_tokens=reference, reference_transcript=expected,
         samples=samples, operation_profiles=profiles, shape_profiles=shapes,
+        attention_profiles=attention_shapes, profile_schema=2,
     ))
     print(f"Block {args.block} complete: {args.output}", flush=True)
 

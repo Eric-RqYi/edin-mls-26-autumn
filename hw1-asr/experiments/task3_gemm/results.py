@@ -39,6 +39,7 @@ def stats(values):
 
 
 def micro_summary(output, meta):
+    baseline_name = meta.get("baseline", BASELINE)
     with (output / "micro.csv").open(newline="") as handle:
         raw = list(csv.DictReader(handle))
     variants = [v["name"] for v in meta["variants"]]
@@ -74,7 +75,7 @@ def micro_summary(output, meta):
         raise ValueError(f"Incomplete microbenchmark: {len(expected - seen)} missing samples")
     summary = []
     for case in cases:
-        baseline = {int(r["repeat"]): float(r["ms"]) for r in grouped[case, BASELINE]}
+        baseline = {int(r["repeat"]): float(r["ms"]) for r in grouped[case, baseline_name]}
         for variant in variants:
             samples = grouped[case, variant]
             summary.append(dict(
@@ -90,6 +91,7 @@ def micro_summary(output, meta):
 
 
 def model_summaries(output, meta):
+    baseline_name = meta.get("baseline", BASELINE)
     names = [v["name"] for v in meta["variants"]] + ["torch"]
     samples, profiles, shapes = [], [], []
     reference = None
@@ -155,7 +157,7 @@ def model_summaries(output, meta):
         for name in names:
             if counts[name] != op_counts.get((name, "linear"), -1):
                 raise ValueError("Shape profile does not cover all linear calls")
-            if shape_call_maps[name] != shape_call_maps[BASELINE]:
+            if shape_call_maps[name] != shape_call_maps[baseline_name]:
                 raise ValueError("Linear workload differs across variants")
 
     by_pair = {(r["block"], r["round"], r["variant"]): r["wall_ms"] for r in samples}
@@ -164,12 +166,13 @@ def model_summaries(output, meta):
         block_ratios = []
         for block in range(1, meta["model_blocks"] + 1):
             rows = [r for r in samples if r["block"] == block and r["variant"] == name]
-            ratios = [by_pair[block, r["round"], BASELINE] / r["wall_ms"] for r in rows]
+            ratios = [by_pair[block, r["round"], baseline_name] / r["wall_ms"] for r in rows]
             ratio = statistics.median(ratios)
             block_ratios.append(ratio)
             median = statistics.median(r["wall_ms"] for r in rows)
             for row in rows:
                 row["over_2x_block_median"] = row["wall_ms"] > 2 * median
+                row["over_5pct_block_median"] = row["wall_ms"] > 1.05 * median
             block_summary.append(dict(block=block, variant=name, **stats([r["wall_ms"] for r in rows]),
                                       paired_speedup_median=ratio))
         rows = [r for r in samples if r["variant"] == name]
@@ -177,6 +180,7 @@ def model_summaries(output, meta):
                            median_block_paired_speedup=statistics.median(block_ratios),
                            min_block_paired_speedup=min(block_ratios), max_block_paired_speedup=max(block_ratios),
                            slow_samples_over_2x=sum(r["over_2x_block_median"] for r in rows),
+                           slow_samples_over_5pct=sum(r["over_5pct_block_median"] for r in rows),
                            peak_gpu_gib=max(r["peak_allocated_bytes"] for r in rows) / 2**30))
 
     op_groups, shape_groups = defaultdict(list), defaultdict(list)
@@ -196,7 +200,7 @@ def model_summaries(output, meta):
         if len(rows) != meta["model_blocks"] or len({r["calls"] for r in rows}) != 1:
             raise ValueError("Shape workload changed across blocks")
         name, *shape = key
-        baseline = {r["block"]: r["gpu_event_ms"] for r in shape_groups[(BASELINE, *shape)]}
+        baseline = {r["block"]: r["gpu_event_ms"] for r in shape_groups[(baseline_name, *shape)]}
         total = statistics.median(r["gpu_event_ms"] for r in rows)
         shape_summary.append(dict(zip(("variant", "phase", "M", "N", "K", "bias", "act"), key),
                                   blocks=len(rows), calls_per_inference=rows[0]["calls"],
