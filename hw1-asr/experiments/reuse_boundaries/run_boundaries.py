@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Directed shape validation and paired ASR, using frozen existing GPU tools."""
-import argparse,csv,datetime as dt,hashlib,json,os,shlex,shutil,sys
+import argparse,csv,datetime as dt,hashlib,json,os,platform,shlex,shutil,sys
 from pathlib import Path
 from boundary_spec import HW, FLAGS, CASE_FIELDS, ATTENTION_FIELDS, cases, variants
 import run_experiment as runtime
@@ -22,7 +22,7 @@ def parse(argv=None):
 def manifest(part,out,a,gpu):
     vv=[dict(v,build=str(out/'build'/v['name']),library=str(out/'build'/v['name']/'libasr_kernels.so')) for v in variants(part)]
     return dict(status='running',part=part,stage='factorial' if part=='asr' else part,baseline=vv[0]['name'],variants=vv,
-                gpu=gpu,cases=cases('gemm' if part=='attention' else part),attention_cases=cases('attention'),
+                gpu=gpu,python=sys.version,platform=platform.platform(),cases=cases('gemm' if part=='attention' else part),attention_cases=cases('attention'),
                 repeats=a.repeats,warmup=a.warmup,iterations=a.iterations,seed=a.seed,
                 skip_model=part!='asr',model_blocks=a.model_blocks,model_runs=a.model_runs,model_warmup=a.model_warmup)
 
