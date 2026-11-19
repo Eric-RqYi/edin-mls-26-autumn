@@ -30,13 +30,11 @@
 #ifndef ASR_ATTN_WARPS
 #define ASR_ATTN_WARPS 4
 #endif
-#ifndef ASR_ATTN_ONLINE_MODE
-#define ASR_ATTN_ONLINE_MODE 0  // 0: original MaxSum, 1: direct running-max update
+#if defined(ASR_ATTN_ONLINE_MODE) && ASR_ATTN_ONLINE_MODE != 0
+#error "Unsupported legacy attention configuration: use ASR_ATTN_ONLINE_MODE=0"
 #endif
 constexpr int ATTN_WARPS = ASR_ATTN_WARPS;
 static_assert(ATTN_WARPS >= 1 && ATTN_WARPS <= 32, "Attention needs 1..32 warps/block");
-static_assert(ASR_ATTN_ONLINE_MODE == 0 || ASR_ATTN_ONLINE_MODE == 1,
-              "Online mode must be 0 (original) or 1 (direct)");
 constexpr int KV_TILE = WARP_SIZE;     // keys per tile: one per lane
 constexpr int MAX_HEAD_DIM = 128;      // head_dim must be a multiple of 32, at most this
 constexpr int MAX_DIMS_PER_LANE = MAX_HEAD_DIM / WARP_SIZE;
@@ -135,17 +133,6 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
     // Update m, l and acc with this tile (guide, section 3) and set p.
     // YOUR CODE HERE
     float tile_max = warp_reduce_max(s);
-#if ASR_ATTN_ONLINE_MODE == 1
-    // Use the new running maximum for the probabilities immediately, instead
-    // of first normalizing to tile_max and then computing exp(s-m) again.
-    // All-masked/spare warps keep {-inf, 0}; avoid -inf - -inf producing NaN.
-    const float m_new = fmaxf(m, tile_max);
-    const float corr = (m_new == -INFINITY) ? 0.0f : expf(m - m_new);
-    p = (m_new == -INFINITY) ? 0.0f : expf(s - m_new);
-    l = l * corr + warp_reduce_sum(p);
-    m = m_new;
-    for (int t = 0; t < MAX_DIMS_PER_LANE; ++t) acc[t] *= corr;
-#else
     float tile_p = (tile_max == -INFINITY)
                    ? 0.0f : expf(s - tile_max);
     float tile_l = warp_reduce_sum(tile_p);
@@ -159,7 +146,6 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
     m = ms.m;
     l = ms.l;
     p = (m == -INFINITY) ? 0.0f : expf(s - m);
-#endif
     // ============================================================
 
     // ======================== BLANK 4.5 =========================
