@@ -1,0 +1,17 @@
+\begin{center}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Operation & Calls & Median total event time (ms) \\
+\midrule
+\texttt{im2col} & 2 & 0.314 \\
+\texttt{linear} & 2757 & 2324.838 \\
+\texttt{layernorm} & 65 & 3.945 \\
+\texttt{rope} & 396 & 5.409 \\
+\texttt{attention} & 396 & 746.568 \\
+\texttt{embedding} & 13 & 0.420 \\
+\texttt{rmsnorm} & 741 & 6.428 \\
+\texttt{silu\_mul} & 364 & 5.735 \\
+\texttt{softmax} & 13 & 1.819 \\
+\bottomrule
+\end{tabular}
+\end{center}

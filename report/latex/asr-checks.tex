@@ -1,0 +1,45 @@
+\par\noindent\textbf{GPU.} \texttt{nvidia-smi -L} reported an NVIDIA H200 with a \texttt{MIG 1g.18gb} slice. The CUDA test reported 16 multiprocessors, target \texttt{sm\_90}.
+\begin{center}
+\begin{tabular}{@{}llrr@{}}
+\toprule
+Task & Passing case & Max. abs. error & Time (ms) \\
+\midrule
+1. RoPE & Tiny, 2 batches and 3 tokens & \(1.08\times 10^{-7}\) & 0.002 \\
+ & odd sizes, partial rotation & \(1.08\times 10^{-7}\) & 0.002 \\
+ & Audio encoder, partial rotation & \(1.93\times 10^{-7}\) & 0.063 \\
+ & Text decoder, GQA 16/4 & \(1.64\times 10^{-7}\) & 0.007 \\
+\addlinespace
+2. Reductions & rmsnorm, one short row & \(8.27\times 10^{-8}\) & 0.002 \\
+ & rmsnorm, odd cols & \(3.68\times 10^{-7}\) & 0.003 \\
+ & rmsnorm, text decoder & \(4.35\times 10^{-7}\) & 0.005 \\
+ & layernorm, odd cols (example) & \(3.91\times 10^{-7}\) & 0.004 \\
+ & layernorm, audio encoder & \(5.42\times 10^{-7}\) & 0.059 \\
+ & softmax, one short row & \(1.11\times 10^{-8}\) & 0.002 \\
+ & softmax, odd cols & \(1.88\times 10^{-9}\) & 0.003 \\
+ & softmax, large inputs ($\pm100$) & \(1.89\times 10^{-8}\) & 0.004 \\
+ & softmax, all negative (-200..-150) & \(1.69\times 10^{-8}\) & 0.003 \\
+ & softmax, vocabulary row (59264) & \(8.13\times 10^{-11}\) & 0.098 \\
+ & softmax, 64 x 4096 & \(9.84\times 10^{-10}\) & 0.010 \\
+\addlinespace
+3. GEMM & tiny 3 x 5, K = 7 & \(9.76\times 10^{-9}\) & 0.003 \\
+ & odd sizes 37 x 100, K = 33, bias & \(1.55\times 10^{-7}\) & 0.006 \\
+ & odd sizes, bias + GELU & \(7.70\times 10^{-7}\) & 0.014 \\
+ & Decoder query projection & \(1.14\times 10^{-5}\) & 0.305 \\
+ & Decoder gate projection & \(0.00\times 10^{0}\) & 0.685 \\
+ & Decoder down projection & \(3.72\times 10^{-5}\) & 0.903 \\
+ & Vocabulary, last token & \(1.43\times 10^{-6}\) & 0.886 \\
+ & Encoder query projection & \(1.01\times 10^{-5}\) & 1.938 \\
+ & First encoder feed-forward layer with GELU & \(6.92\times 10^{-7}\) & 7.818 \\
+ & Second convolution via matrix multiply & \(2.57\times 10^{-5}\) & 5.985 \\
+\addlinespace
+4. Attention & tiny, one tile (4 queries, 5 keys) & \(8.15\times 10^{-8}\) & 0.006 \\
+ & several tiles, peaky scores & \(4.97\times 10^{-7}\) & 0.018 \\
+ & GQA 4 heads / 2 kv heads & \(1.30\times 10^{-7}\) & 0.009 \\
+ & causal, seq\_q = seq\_k & \(5.16\times 10^{-7}\) & 0.025 \\
+ & causal, 5 new queries, 37 keys & \(1.78\times 10^{-7}\) & 0.010 \\
+ & causal, one new query & \(3.39\times 10^{-7}\) & 0.024 \\
+ & Text decoder, causal GQA 16/4 & \(5.21\times 10^{-7}\) & 0.050 \\
+ & Audio encoder, 20 heads & \(2.68\times 10^{-7}\) & 22.601 \\
+\bottomrule
+\end{tabular}
+\end{center}

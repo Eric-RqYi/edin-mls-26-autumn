@@ -1,3 +1,75 @@
+### 18-Nov-2026: Full-ASR factorial results
+
+Run: `hw1-asr/experiments/task4_attention/results/20261118T082810Z-1093639`.
+Hardware: H200 MIG 1g.18gb, sm_90, 16 SMs. All comparisons below use this run's
+paired baseline (rb4x4 + M=1/w4, attention w4/standard).
+
+- Combined ASR median: 3371.26 -> 3074.82 ms, saving 296.44 ms (8.79% latency
+  reduction), median block-paired speedup 1.096366x. Three block ratios range
+  from 1.096333x to 1.096482x. Mean is 3075.03 ms; no CUDA sample exceeds its
+  block median by 5%, and every raw sample remains included.
+- Hybrid alone saves 35.17 ms (1.04%); attention w16/direct alone saves
+  260.35 ms (7.72%). Combined profile savings are 35.49 ms linear + 260.30 ms
+  attention, matching wall-time savings within about 0.65 ms. Median paired
+  interaction is -0.456 ms: approximately additive, without evidence for a
+  meaningful extra synergy.
+- Direct stage profiling confirms encoder attention falls from 955.53 to
+  704.23 ms (32 calls), decoder from 33.27 to 24.27 ms (364 calls). Encoder
+  accounts for about 96.63% of baseline attention, matching the earlier budget.
+- Read-only audit: 33 frozen source hashes, 392 attention micro samples,
+  924 GEMM samples, 150 timed model samples, 16 coursework task-test runs and
+  six sanitizer logs checked. All 150 token sequences agree (13 tokens each).
+  All 30 linear/attention shape-to-operation boundary checks match exactly.
+- Hybrid performance depends on context: M=65/80/96 is slower in hot-cache
+  KV microbenchmarks, while actual model M=65..71 still saves about 3.35 ms.
+  Do not narrow the dispatch rule solely from one microbenchmark context.
+- Coverage finding: GEMM sanitizer --small only selects six cases with
+  M*N*K<=1e5, none on the N=512/K=2048/M>1 hybrid route. Numerical/model checks
+  pass; a dedicated KV-path sanitizer set remains a next-step validation item.
+- Next experimental baseline: combined. After dedicated sanitizer coverage,
+  prioritize linear (75.53% of combined operation profile), particularly
+  decoder gate/up+down (~1145.74 ms, 37.26% of ASR). A small K-tile 16/32 x RN
+  4/8 ablation is proposed; no new tuning kernel or default was applied here.
+
+Analysis, reproducible audit and derived tables: `analysis/` inside this run.
+Original measurements, reports and frozen sources were preserved.
+
+### 18-Nov-2026: Attention sweep results and repeat comparison
+
+Retained run: `hw1-asr/experiments/task4_attention/results/20261118T001456Z-748564`.
+Compared repeat: `20261118T001457Z-748568`, removed at the user's request after
+confirming the same experiment conclusions. Both ran on H200 MIG 1g.18gb
+(sm_90, 16 SMs), on different physical GPUs and MIG UUIDs.
+
+- Configurations, compiler flags and all 33 frozen source hashes match. Each
+  run has 980 attention and 280 GEMM samples with complete coverage, zero wrong
+  outputs, 40 coursework test passes and six clean small-case sanitizer checks.
+- Across 140 attention case/variant medians, the absolute run-to-run difference
+  has median 0.317% and maximum 1.590%; for 40 GEMM control groups, median 0.037%
+  and maximum 0.776%. All 14 attention case winners agree. Small timing/ranking
+  differences remain; this is not a formal statistical equivalence claim.
+- Retained encoder result: w4_standard 29.861115 ms -> w16_direct 22.005772 ms,
+  paired speedup 1.356967x, latency reduced 26.31%. Warp count supplies most of
+  this: w16_standard is 22.602106 ms; direct saves a further 2.64% at 16 warps.
+- Decoder prefers w16_standard (0.049563 ms) to w16_direct (0.056541 ms), so the
+  encoder winner is not assumed to be best for every attention shape. Standard
+  uses 40 registers/thread, direct 32; all attention configurations have no spills.
+- These are microbenchmarks only (`skip_model=true`); full-ASR latency, token
+  consistency and stage profiles have not been established for the new configs.
+  The 32-encoder-call budget is about 251 ms saved, not a measured system gain.
+- Next: run the existing factorial stage with `--selected-warps 16
+  --selected-online direct --sanitizer`, retaining three model blocks and ten
+  paired rounds. Compare hybrid/attention alone and together, exact tokens,
+  shape-event boundaries and all slow samples before changing defaults.
+- Saved both-run summaries, metadata/audits, comparison CSV and the removed-file
+  SHA256 inventory before deleting the later full directory (195 files,
+  79,558,328 bytes). The retained raw measurements and frozen sources were
+  preserved. The analysis audit also runs after deletion using saved comparison
+  records for the removed group.
+
+Full report, comparison, audit script and cleanup record:
+`analysis/` inside the retained run.
+
 ### 17-Nov-2026: Attention sweep and GEMM-dispatch factorial (prepared offline)
 
 - Added independent `ASR_ATTN_WARPS` and `ASR_ATTN_ONLINE_MODE` controls in
