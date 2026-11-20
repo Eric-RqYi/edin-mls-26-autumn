@@ -1,0 +1,256 @@
+# 0 "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/preflight/host_probe.cpp"
+# 0 "<built-in>"
+# 0 "<command-line>"
+# 1 "/usr/include/stdc-predef.h" 1 3 4
+# 0 "<command-line>" 2
+# 1 "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/preflight/host_probe.cpp"
+# 1 "/usr/include/c++/13/cstddef" 1 3
+# 42 "/usr/include/c++/13/cstddef" 3
+       
+# 43 "/usr/include/c++/13/cstddef" 3
+
+
+
+
+
+
+# 1 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 1 3
+# 306 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 3
+
+# 306 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 3
+namespace std
+{
+  typedef long unsigned int size_t;
+  typedef long int ptrdiff_t;
+
+
+  typedef decltype(nullptr) nullptr_t;
+
+
+#pragma GCC visibility push(default)
+
+
+  extern "C++" __attribute__ ((__noreturn__, __always_inline__))
+  inline void __terminate() noexcept
+  {
+    void terminate() noexcept __attribute__ ((__noreturn__));
+    terminate();
+  }
+#pragma GCC visibility pop
+}
+# 339 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 3
+namespace std
+{
+  inline namespace __cxx11 __attribute__((__abi_tag__ ("cxx11"))) { }
+}
+namespace __gnu_cxx
+{
+  inline namespace __cxx11 __attribute__((__abi_tag__ ("cxx11"))) { }
+}
+# 532 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 3
+namespace std
+{
+#pragma GCC visibility push(default)
+
+
+
+
+  constexpr inline bool
+  __is_constant_evaluated() noexcept
+  {
+
+
+
+
+
+    return __builtin_is_constant_evaluated();
+
+
+
+  }
+#pragma GCC visibility pop
+}
+# 679 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 3
+# 1 "/usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h" 1 3
+# 39 "/usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h" 3
+# 1 "/usr/include/features.h" 1 3 4
+# 394 "/usr/include/features.h" 3 4
+# 1 "/usr/include/features-time64.h" 1 3 4
+# 20 "/usr/include/features-time64.h" 3 4
+# 1 "/usr/include/x86_64-linux-gnu/bits/wordsize.h" 1 3 4
+# 21 "/usr/include/features-time64.h" 2 3 4
+# 1 "/usr/include/x86_64-linux-gnu/bits/timesize.h" 1 3 4
+# 19 "/usr/include/x86_64-linux-gnu/bits/timesize.h" 3 4
+# 1 "/usr/include/x86_64-linux-gnu/bits/wordsize.h" 1 3 4
+# 20 "/usr/include/x86_64-linux-gnu/bits/timesize.h" 2 3 4
+# 22 "/usr/include/features-time64.h" 2 3 4
+# 395 "/usr/include/features.h" 2 3 4
+# 502 "/usr/include/features.h" 3 4
+# 1 "/usr/include/x86_64-linux-gnu/sys/cdefs.h" 1 3 4
+# 576 "/usr/include/x86_64-linux-gnu/sys/cdefs.h" 3 4
+# 1 "/usr/include/x86_64-linux-gnu/bits/wordsize.h" 1 3 4
+# 577 "/usr/include/x86_64-linux-gnu/sys/cdefs.h" 2 3 4
+# 1 "/usr/include/x86_64-linux-gnu/bits/long-double.h" 1 3 4
+# 578 "/usr/include/x86_64-linux-gnu/sys/cdefs.h" 2 3 4
+# 503 "/usr/include/features.h" 2 3 4
+# 526 "/usr/include/features.h" 3 4
+# 1 "/usr/include/x86_64-linux-gnu/gnu/stubs.h" 1 3 4
+# 10 "/usr/include/x86_64-linux-gnu/gnu/stubs.h" 3 4
+# 1 "/usr/include/x86_64-linux-gnu/gnu/stubs-64.h" 1 3 4
+# 11 "/usr/include/x86_64-linux-gnu/gnu/stubs.h" 2 3 4
+# 527 "/usr/include/features.h" 2 3 4
+# 40 "/usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h" 2 3
+# 680 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 2 3
+
+
+# 1 "/usr/include/x86_64-linux-gnu/c++/13/bits/cpu_defines.h" 1 3
+# 683 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 2 3
+# 882 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 3
+# 1 "/usr/include/c++/13/pstl/pstl_config.h" 1 3
+# 883 "/usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h" 2 3
+# 50 "/usr/include/c++/13/cstddef" 2 3
+# 1 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 1 3 4
+# 145 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 3 4
+typedef long int ptrdiff_t;
+# 214 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 3 4
+typedef long unsigned int size_t;
+# 425 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 3 4
+typedef struct {
+  long long __max_align_ll __attribute__((__aligned__(__alignof__(long long))));
+  long double __max_align_ld __attribute__((__aligned__(__alignof__(long double))));
+# 436 "/usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h" 3 4
+} max_align_t;
+
+
+
+
+
+
+  typedef decltype(nullptr) nullptr_t;
+# 51 "/usr/include/c++/13/cstddef" 2 3
+
+extern "C++"
+{
+
+namespace std
+{
+
+  using ::max_align_t;
+}
+
+
+
+namespace std
+{
+
+
+
+
+  enum class byte : unsigned char {};
+
+  template<typename _IntegerType> struct __byte_operand { };
+  template<> struct __byte_operand<bool> { using __type = byte; };
+  template<> struct __byte_operand<char> { using __type = byte; };
+  template<> struct __byte_operand<signed char> { using __type = byte; };
+  template<> struct __byte_operand<unsigned char> { using __type = byte; };
+  template<> struct __byte_operand<wchar_t> { using __type = byte; };
+
+
+
+  template<> struct __byte_operand<char16_t> { using __type = byte; };
+  template<> struct __byte_operand<char32_t> { using __type = byte; };
+  template<> struct __byte_operand<short> { using __type = byte; };
+  template<> struct __byte_operand<unsigned short> { using __type = byte; };
+  template<> struct __byte_operand<int> { using __type = byte; };
+  template<> struct __byte_operand<unsigned int> { using __type = byte; };
+  template<> struct __byte_operand<long> { using __type = byte; };
+  template<> struct __byte_operand<unsigned long> { using __type = byte; };
+  template<> struct __byte_operand<long long> { using __type = byte; };
+  template<> struct __byte_operand<unsigned long long> { using __type = byte; };
+# 108 "/usr/include/c++/13/cstddef" 3
+  template<typename _IntegerType>
+    struct __byte_operand<const _IntegerType>
+    : __byte_operand<_IntegerType> { };
+  template<typename _IntegerType>
+    struct __byte_operand<volatile _IntegerType>
+    : __byte_operand<_IntegerType> { };
+  template<typename _IntegerType>
+    struct __byte_operand<const volatile _IntegerType>
+    : __byte_operand<_IntegerType> { };
+
+  template<typename _IntegerType>
+    using __byte_op_t = typename __byte_operand<_IntegerType>::__type;
+
+  template<typename _IntegerType>
+    [[__gnu__::__always_inline__]]
+    constexpr __byte_op_t<_IntegerType>
+    operator<<(byte __b, _IntegerType __shift) noexcept
+    { return (byte)(unsigned char)((unsigned)__b << __shift); }
+
+  template<typename _IntegerType>
+    [[__gnu__::__always_inline__]]
+    constexpr __byte_op_t<_IntegerType>
+    operator>>(byte __b, _IntegerType __shift) noexcept
+    { return (byte)(unsigned char)((unsigned)__b >> __shift); }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte
+  operator|(byte __l, byte __r) noexcept
+  { return (byte)(unsigned char)((unsigned)__l | (unsigned)__r); }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte
+  operator&(byte __l, byte __r) noexcept
+  { return (byte)(unsigned char)((unsigned)__l & (unsigned)__r); }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte
+  operator^(byte __l, byte __r) noexcept
+  { return (byte)(unsigned char)((unsigned)__l ^ (unsigned)__r); }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte
+  operator~(byte __b) noexcept
+  { return (byte)(unsigned char)~(unsigned)__b; }
+
+  template<typename _IntegerType>
+    [[__gnu__::__always_inline__]]
+    constexpr __byte_op_t<_IntegerType>&
+    operator<<=(byte& __b, _IntegerType __shift) noexcept
+    { return __b = __b << __shift; }
+
+  template<typename _IntegerType>
+    [[__gnu__::__always_inline__]]
+    constexpr __byte_op_t<_IntegerType>&
+    operator>>=(byte& __b, _IntegerType __shift) noexcept
+    { return __b = __b >> __shift; }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte&
+  operator|=(byte& __l, byte __r) noexcept
+  { return __l = __l | __r; }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte&
+  operator&=(byte& __l, byte __r) noexcept
+  { return __l = __l & __r; }
+
+  [[__gnu__::__always_inline__]]
+  constexpr byte&
+  operator^=(byte& __l, byte __r) noexcept
+  { return __l = __l ^ __r; }
+
+  template<typename _IntegerType>
+    [[nodiscard,__gnu__::__always_inline__]]
+    constexpr _IntegerType
+    to_integer(__byte_op_t<_IntegerType> __b) noexcept
+    { return _IntegerType(__b); }
+
+
+}
+
+}
+# 2 "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/preflight/host_probe.cpp" 2
+
+# 2 "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/preflight/host_probe.cpp"
+int probe() { return sizeof(void*); }

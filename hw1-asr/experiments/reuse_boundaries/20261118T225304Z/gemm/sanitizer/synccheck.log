@@ -1,0 +1,38 @@
+Command: compute-sanitizer --error-exitcode 99 --tool synccheck /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/benchmark_gemm --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/cases.csv --small --correctness-only tiled16=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled16/libasr_kernels.so tiled32=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled32/libasr_kernels.so rb2x2=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x2/libasr_kernels.so rb2x4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x4/libasr_kernels.so rb4x4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb4x4/libasr_kernels.so hybrid=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/hybrid/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-ghkbp691
+NVCC_CCBIN: /usr/bin/g++
+========= COMPUTE-SANITIZER
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+edge_m2              tiled16  PASS max_err=1.690e-08 ref=CPU_double
+edge_m2              tiled32  PASS max_err=1.690e-08 ref=CPU_double
+edge_m2              rb2x2    PASS max_err=1.690e-08 ref=CPU_double
+edge_m2              rb2x4    PASS max_err=1.690e-08 ref=CPU_double
+edge_m2              rb4x4    PASS max_err=1.690e-08 ref=CPU_double
+edge_m2              hybrid   PASS max_err=1.690e-08 ref=CPU_double
+edge_bias_gelu       tiled16  PASS max_err=4.060e-08 ref=CPU_double
+edge_bias_gelu       tiled32  PASS max_err=4.060e-08 ref=CPU_double
+edge_bias_gelu       rb2x2    PASS max_err=4.060e-08 ref=CPU_double
+edge_bias_gelu       rb2x4    PASS max_err=4.060e-08 ref=CPU_double
+edge_bias_gelu       rb4x4    PASS max_err=4.060e-08 ref=CPU_double
+edge_bias_gelu       hybrid   PASS max_err=4.060e-08 ref=CPU_double
+edge_tiles           tiled16  PASS max_err=5.327e-08 ref=CPU_double
+edge_tiles           tiled32  PASS max_err=5.327e-08 ref=CPU_double
+edge_tiles           rb2x2    PASS max_err=5.327e-08 ref=CPU_double
+edge_tiles           rb2x4    PASS max_err=5.327e-08 ref=CPU_double
+edge_tiles           rb4x4    PASS max_err=5.327e-08 ref=CPU_double
+edge_tiles           hybrid   PASS max_err=5.327e-08 ref=CPU_double
+edge_short_k         tiled16  PASS max_err=6.640e-08 ref=CPU_double
+edge_short_k         tiled32  PASS max_err=6.640e-08 ref=CPU_double
+edge_short_k         rb2x2    PASS max_err=6.640e-08 ref=CPU_double
+edge_short_k         rb2x4    PASS max_err=6.640e-08 ref=CPU_double
+edge_short_k         rb4x4    PASS max_err=6.640e-08 ref=CPU_double
+edge_short_k         hybrid   PASS max_err=6.640e-08 ref=CPU_double
+edge_k1              tiled16  PASS max_err=3.594e-09 ref=CPU_double
+edge_k1              tiled32  PASS max_err=3.594e-09 ref=CPU_double
+edge_k1              rb2x2    PASS max_err=3.594e-09 ref=CPU_double
+edge_k1              rb2x4    PASS max_err=3.594e-09 ref=CPU_double
+edge_k1              rb4x4    PASS max_err=3.594e-09 ref=CPU_double
+edge_k1              hybrid   PASS max_err=3.594e-09 ref=CPU_double
+Task 3 GEMM experiment: ALL PASS
+========= ERROR SUMMARY: 0 errors

@@ -1,0 +1,5 @@
+Command: nvidia-smi -L
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-ghkbp691
+NVCC_CCBIN: /usr/bin/g++
+GPU 0: NVIDIA H200 (UUID: GPU-6096d4d6-542b-1e8d-ea2a-4c1eeeef9c83)
+  MIG 1g.18gb     Device  0: (UUID: MIG-d5428b7d-357e-51fa-a296-b47879386508)

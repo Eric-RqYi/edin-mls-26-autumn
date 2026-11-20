@@ -1,0 +1,4 @@
+Command: nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -arch=sm_90 -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/source/csrc -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/source/tests /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/source/experiment/benchmark_gemm.cu -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/benchmark_gemm -lcublas -ldl -Xlinker -rpath -Xlinker /opt/cuda-12.8.0/lib64
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-o1y7rd0s
+NVCC_CCBIN: /usr/bin/g++
+ptxas info    : 0 bytes gmem

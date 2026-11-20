@@ -1,0 +1,14 @@
+Command: compute-sanitizer --error-exitcode 99 --tool memcheck /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/benchmark_gemm --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/hybrid_sanitizer.csv --correctness-only tiled16=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled16/libasr_kernels.so tiled32=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled32/libasr_kernels.so rb2x2=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x2/libasr_kernels.so rb2x4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x4/libasr_kernels.so rb4x4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb4x4/libasr_kernels.so hybrid=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/hybrid/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-ghkbp691
+NVCC_CCBIN: /usr/bin/g++
+========= COMPUTE-SANITIZER
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+hybrid_m2            tiled16  PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            tiled32  PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            rb2x2    PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            rb2x4    PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            rb4x4    PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            hybrid   PASS max_err=9.492e-06 ref=CPU_double
+Task 3 GEMM experiment: ALL PASS
+========= ERROR SUMMARY: 0 errors

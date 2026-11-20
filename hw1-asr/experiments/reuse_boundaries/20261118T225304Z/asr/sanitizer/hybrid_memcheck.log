@@ -1,0 +1,12 @@
+Command: compute-sanitizer --error-exitcode 99 --tool memcheck /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/benchmark_gemm --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/hybrid_sanitizer.csv --correctness-only base=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/base/libasr_kernels.so hybrid=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/hybrid/libasr_kernels.so attention=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/attention/libasr_kernels.so combined=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/combined/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-as7j5bnl
+NVCC_CCBIN: /usr/bin/g++
+========= COMPUTE-SANITIZER
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+hybrid_m2            base     PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            hybrid   PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            attention PASS max_err=9.492e-06 ref=CPU_double
+hybrid_m2            combined PASS max_err=9.492e-06 ref=CPU_double
+Task 3 GEMM experiment: ALL PASS
+========= ERROR SUMMARY: 0 errors

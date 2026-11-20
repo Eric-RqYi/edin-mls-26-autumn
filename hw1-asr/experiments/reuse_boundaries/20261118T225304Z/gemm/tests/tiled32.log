@@ -1,0 +1,62 @@
+Command: make SM=90 BUILD=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled32 SRC=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/source/csrc 'NVCCFLAGS=-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=0 -DASR_TASK3_TILE=32 -DASR_TASK3_RM=2 -DASR_TASK3_RN=2 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0' test
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-ghkbp691
+NVCC_CCBIN: /usr/bin/g++
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+tiny (2 x 3 tokens, Hq=3, Hk=1)      PASS  max_err=1.08e-07     0.002 ms      0.8 GB/s ( 0% of peak)
+odd sizes, partial rotation          PASS  max_err=1.08e-07     0.002 ms      7.9 GB/s ( 1% of peak)
+audio encoder (partial, 32/64)       PASS  max_err=1.93e-07     0.063 ms    242.7 GB/s (43% of peak)
+text decoder (GQA 16/4, full)        PASS  max_err=1.64e-07     0.007 ms    190.4 GB/s (34% of peak)
+
+Task 1 (RoPE): ALL PASS
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+rmsnorm, one short row               PASS  max_err=8.27e-08     0.002 ms      0.1 GB/s ( 0% of peak)
+rmsnorm, odd cols                    PASS  max_err=3.68e-07     0.003 ms     12.9 GB/s ( 2% of peak)
+rmsnorm, text decoder                PASS  max_err=4.35e-07     0.005 ms    216.9 GB/s (38% of peak)
+layernorm, odd cols (example)        PASS  max_err=3.91e-07     0.004 ms     10.8 GB/s ( 2% of peak)
+layernorm, audio encoder             PASS  max_err=5.42e-07     0.059 ms    259.1 GB/s (46% of peak)
+softmax, one short row               PASS  max_err=1.11e-08     0.002 ms      0.0 GB/s ( 0% of peak)
+softmax, odd cols                    PASS  max_err=1.88e-09     0.003 ms      7.0 GB/s ( 1% of peak)
+softmax, large inputs (+-100)        PASS  max_err=1.89e-08     0.004 ms      4.1 GB/s ( 1% of peak)
+softmax, all negative (-200..-150)   PASS  max_err=1.69e-08     0.003 ms      1.6 GB/s ( 0% of peak)
+softmax, vocabulary row (59264)      PASS  max_err=8.13e-11     0.098 ms      4.8 GB/s ( 1% of peak)
+softmax, 64 x 4096                   PASS  max_err=9.84e-10     0.010 ms    215.0 GB/s (38% of peak)
+
+Task 2 (reductions): ALL PASS
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+tiny 3 x 5, K = 7                    PASS  max_err=9.76e-09     0.003 ms        0 GFLOP/s
+    for comparison: naive      0 GFLOP/s, cuBLAS      0 GFLOP/s (CPU reference)
+odd sizes 37 x 100, K = 33, bias     PASS  max_err=1.55e-07     0.004 ms       61 GFLOP/s
+    for comparison: naive     72 GFLOP/s, cuBLAS     43 GFLOP/s (CPU reference)
+odd sizes, bias + GELU               PASS  max_err=7.70e-07     0.007 ms      123 GFLOP/s
+    for comparison: naive    133 GFLOP/s, cuBLAS    147 GFLOP/s (CPU reference)
+decoder q_proj (64x2048x2048)        PASS  max_err=1.14e-05     0.517 ms     1039 GFLOP/s
+    for comparison: naive    111 GFLOP/s, cuBLAS   4274 GFLOP/s (cuBLAS reference)
+decoder gate_proj (64x6144x2048)     PASS  max_err=0.00e+00     1.508 ms     1068 GFLOP/s
+    for comparison: naive    111 GFLOP/s, cuBLAS   4135 GFLOP/s (cuBLAS reference)
+decoder down_proj (64x2048x6144)     PASS  max_err=3.72e-05     1.541 ms     1045 GFLOP/s
+    for comparison: naive    109 GFLOP/s, cuBLAS   5186 GFLOP/s (cuBLAS reference)
+lm_head, last token (1x59264x2048)   PASS  max_err=1.43e-06     0.886 ms      274 GFLOP/s
+    for comparison: naive     58 GFLOP/s, cuBLAS    258 GFLOP/s (cuBLAS reference)
+encoder q_proj (1500x1280x1280)      PASS  max_err=1.01e-05     4.447 ms     1105 GFLOP/s
+    for comparison: naive    111 GFLOP/s, cuBLAS   5006 GFLOP/s (cuBLAS reference)
+encoder fc1 + GELU (1500x5120x1280)  PASS  max_err=6.92e-07    18.345 ms     1072 GFLOP/s
+    for comparison: naive    110 GFLOP/s, cuBLAS   6174 GFLOP/s (cuBLAS reference)
+conv2 via im2col (1500x1280x3840)    PASS  max_err=2.57e-05    13.736 ms     1073 GFLOP/s
+    for comparison: naive    110 GFLOP/s, cuBLAS   5857 GFLOP/s (cuBLAS reference)
+
+Task 3 (tiled GEMM): ALL PASS
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+tiny, one tile (4 queries, 5 keys)   PASS  max_err=8.15e-08     0.006 ms        0 GFLOP/s
+several tiles, peaky scores          PASS  max_err=4.97e-07     0.020 ms       12 GFLOP/s
+GQA 4 heads / 2 kv heads             PASS  max_err=1.30e-07     0.010 ms       58 GFLOP/s
+causal, seq_q = seq_k                PASS  max_err=5.16e-07     0.037 ms       68 GFLOP/s
+causal, 5 new queries, 37 keys       PASS  max_err=1.78e-07     0.011 ms       17 GFLOP/s
+causal, one new query                PASS  max_err=3.39e-07     0.035 ms       17 GFLOP/s
+text decoder (GQA 16/4, causal)      PASS  max_err=5.21e-07     0.079 ms      212 GFLOP/s
+audio encoder (20 heads, 1500)       PASS  max_err=2.68e-07    29.869 ms      386 GFLOP/s
+
+Task 4 (attention): ALL PASS

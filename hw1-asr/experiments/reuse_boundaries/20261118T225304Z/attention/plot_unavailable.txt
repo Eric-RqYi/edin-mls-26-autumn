@@ -1,0 +1,1 @@
+Install matplotlib to render the candidate figure; numerical tables are available.

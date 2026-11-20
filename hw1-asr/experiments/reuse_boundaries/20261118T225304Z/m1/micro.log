@@ -1,0 +1,15 @@
+Command: /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/benchmark_gemm --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/cases.csv --csv /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/micro.csv --warmup 5 --iterations 20 --repeats 7 --seed 21 tiled16_raw=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/tiled16_raw/libasr_kernels.so rb4x4_raw=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/rb4x4_raw/libasr_kernels.so m1_w4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/m1_w4/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-o1y7rd0s
+NVCC_CCBIN: /usr/bin/g++
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+kv                   tiled16_raw PASS max_err=9.492e-06 ref=CPU_double
+kv                   rb4x4_raw PASS max_err=9.492e-06 ref=CPU_double
+kv                   m1_w4    PASS max_err=9.341e-07 ref=CPU_double
+lm_head              tiled16_raw PASS max_err=1.097e-05 ref=cuBLAS_FP32
+lm_head              rb4x4_raw PASS max_err=1.097e-05 ref=cuBLAS_FP32
+lm_head              m1_w4    PASS max_err=1.431e-06 ref=cuBLAS_FP32
+m1_tail              tiled16_raw PASS max_err=6.710e-08 ref=CPU_double
+m1_tail              rb4x4_raw PASS max_err=6.710e-08 ref=CPU_double
+m1_tail              m1_w4    PASS max_err=3.567e-08 ref=CPU_double
+Task 3 GEMM experiment: ALL PASS

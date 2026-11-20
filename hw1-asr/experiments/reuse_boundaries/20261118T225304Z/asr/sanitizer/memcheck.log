@@ -1,0 +1,32 @@
+Command: compute-sanitizer --error-exitcode 99 --tool memcheck /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/benchmark_gemm --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/cases.csv --small --correctness-only base=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/base/libasr_kernels.so hybrid=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/hybrid/libasr_kernels.so attention=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/attention/libasr_kernels.so combined=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/asr/build/combined/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-as7j5bnl
+NVCC_CCBIN: /usr/bin/g++
+========= COMPUTE-SANITIZER
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+m1_tail_control      base     PASS max_err=6.850e-08 ref=CPU_double
+m1_tail_control      hybrid   PASS max_err=6.850e-08 ref=CPU_double
+m1_tail_control      attention PASS max_err=6.850e-08 ref=CPU_double
+m1_tail_control      combined PASS max_err=6.850e-08 ref=CPU_double
+edge_m2              base     PASS max_err=7.133e-09 ref=CPU_double
+edge_m2              hybrid   PASS max_err=7.133e-09 ref=CPU_double
+edge_m2              attention PASS max_err=7.133e-09 ref=CPU_double
+edge_m2              combined PASS max_err=7.133e-09 ref=CPU_double
+edge_bias_gelu       base     PASS max_err=5.499e-08 ref=CPU_double
+edge_bias_gelu       hybrid   PASS max_err=5.499e-08 ref=CPU_double
+edge_bias_gelu       attention PASS max_err=5.499e-08 ref=CPU_double
+edge_bias_gelu       combined PASS max_err=5.499e-08 ref=CPU_double
+edge_tiles           base     PASS max_err=6.689e-08 ref=CPU_double
+edge_tiles           hybrid   PASS max_err=6.689e-08 ref=CPU_double
+edge_tiles           attention PASS max_err=6.689e-08 ref=CPU_double
+edge_tiles           combined PASS max_err=6.689e-08 ref=CPU_double
+edge_short_k         base     PASS max_err=5.766e-08 ref=CPU_double
+edge_short_k         hybrid   PASS max_err=5.766e-08 ref=CPU_double
+edge_short_k         attention PASS max_err=5.766e-08 ref=CPU_double
+edge_short_k         combined PASS max_err=5.766e-08 ref=CPU_double
+edge_k1              base     PASS max_err=3.656e-09 ref=CPU_double
+edge_k1              hybrid   PASS max_err=3.656e-09 ref=CPU_double
+edge_k1              attention PASS max_err=3.656e-09 ref=CPU_double
+edge_k1              combined PASS max_err=3.656e-09 ref=CPU_double
+Task 3 GEMM experiment: ALL PASS
+========= ERROR SUMMARY: 0 errors

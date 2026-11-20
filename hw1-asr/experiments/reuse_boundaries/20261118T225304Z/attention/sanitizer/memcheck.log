@@ -1,0 +1,63 @@
+Command: compute-sanitizer --error-exitcode 99 --tool memcheck /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/benchmark_attention --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/cases.csv --small --correctness-only w4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/libasr_kernels.so w1=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w1/libasr_kernels.so w2=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w2/libasr_kernels.so w8=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w8/libasr_kernels.so w16=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w16/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-gcik25l8
+NVCC_CCBIN: /usr/bin/g++
+========= COMPUTE-SANITIZER
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+tiny               w4             PASS max_err=5.175e-08 ref=CPU_double
+tiny               w1             PASS max_err=5.175e-08 ref=CPU_double
+tiny               w2             PASS max_err=5.175e-08 ref=CPU_double
+tiny               w8             PASS max_err=5.175e-08 ref=CPU_double
+tiny               w16            PASS max_err=5.175e-08 ref=CPU_double
+odd_gqa            w4             PASS max_err=3.844e-07 ref=CPU_double
+odd_gqa            w1             PASS max_err=3.844e-07 ref=CPU_double
+odd_gqa            w2             PASS max_err=3.844e-07 ref=CPU_double
+odd_gqa            w8             PASS max_err=3.844e-07 ref=CPU_double
+odd_gqa            w16            PASS max_err=3.844e-07 ref=CPU_double
+peaky              w4             PASS max_err=1.632e-06 ref=CPU_double
+peaky              w1             PASS max_err=1.632e-06 ref=CPU_double
+peaky              w2             PASS max_err=1.632e-06 ref=CPU_double
+peaky              w8             PASS max_err=1.632e-06 ref=CPU_double
+peaky              w16            PASS max_err=1.632e-06 ref=CPU_double
+very_peaky         w4             PASS max_err=6.386e-06 ref=CPU_double
+very_peaky         w1             PASS max_err=6.386e-06 ref=CPU_double
+very_peaky         w2             PASS max_err=6.386e-06 ref=CPU_double
+very_peaky         w8             PASS max_err=6.386e-06 ref=CPU_double
+very_peaky         w16            PASS max_err=6.386e-06 ref=CPU_double
+late_max           w4             PASS max_err=5.780e-08 ref=CPU_double
+late_max           w1             PASS max_err=5.780e-08 ref=CPU_double
+late_max           w2             PASS max_err=5.780e-08 ref=CPU_double
+late_max           w8             PASS max_err=5.780e-08 ref=CPU_double
+late_max           w16            PASS max_err=5.780e-08 ref=CPU_double
+negative_scores    w4             PASS max_err=6.926e-08 ref=CPU_double
+negative_scores    w1             PASS max_err=6.926e-08 ref=CPU_double
+negative_scores    w2             PASS max_err=6.926e-08 ref=CPU_double
+negative_scores    w8             PASS max_err=6.926e-08 ref=CPU_double
+negative_scores    w16            PASS max_err=6.926e-08 ref=CPU_double
+uniform            w4             PASS max_err=5.562e-08 ref=CPU_double
+uniform            w1             PASS max_err=5.562e-08 ref=CPU_double
+uniform            w2             PASS max_err=5.562e-08 ref=CPU_double
+uniform            w8             PASS max_err=5.562e-08 ref=CPU_double
+uniform            w16            PASS max_err=5.562e-08 ref=CPU_double
+cache_q5           w4             PASS max_err=1.130e-06 ref=CPU_double
+cache_q5           w1             PASS max_err=1.130e-06 ref=CPU_double
+cache_q5           w2             PASS max_err=1.130e-06 ref=CPU_double
+cache_q5           w8             PASS max_err=1.130e-06 ref=CPU_double
+cache_q5           w16            PASS max_err=1.130e-06 ref=CPU_double
+cache_q1           w4             PASS max_err=1.343e-06 ref=CPU_double
+cache_q1           w1             PASS max_err=1.343e-06 ref=CPU_double
+cache_q1           w2             PASS max_err=1.343e-06 ref=CPU_double
+cache_q1           w8             PASS max_err=1.343e-06 ref=CPU_double
+cache_q1           w16            PASS max_err=1.343e-06 ref=CPU_double
+masked_prefix      w4             PASS max_err=1.911e-07 ref=CPU_double
+masked_prefix      w1             PASS max_err=1.911e-07 ref=CPU_double
+masked_prefix      w2             PASS max_err=1.911e-07 ref=CPU_double
+masked_prefix      w8             PASS max_err=1.911e-07 ref=CPU_double
+masked_prefix      w16            PASS max_err=1.911e-07 ref=CPU_double
+dim96              w4             PASS max_err=2.597e-06 ref=CPU_double
+dim96              w1             PASS max_err=2.597e-06 ref=CPU_double
+dim96              w2             PASS max_err=2.597e-06 ref=CPU_double
+dim96              w8             PASS max_err=2.597e-06 ref=CPU_double
+dim96              w16            PASS max_err=2.597e-06 ref=CPU_double
+Attention experiment: ALL PASS
+========= ERROR SUMMARY: 0 errors

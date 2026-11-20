@@ -1,0 +1,11 @@
+variant,phase,median_profile_ms
+base,encoder,955.8906555175781
+base,decoder,33.035135984420776
+hybrid,encoder,955.9475231170654
+hybrid,decoder,33.051072016358376
+attention,encoder,723.4208335876465
+attention,decoder,23.13644800707698
+combined,encoder,723.4376335144043
+combined,decoder,23.106463994830847
+torch,encoder,138.61904001235962
+torch,decoder,22.91391996666789

@@ -1,0 +1,3 @@
+metric,method,seed,resamples,ci_low_ms,ci_high_ms
+core_asr_ms,stratified_query_cluster_bootstrap,21,2000,3743.113191507291,4170.230114541482
+end_to_end_ms,stratified_query_cluster_bootstrap,21,2000,3360.782805015333,4335.720236995257

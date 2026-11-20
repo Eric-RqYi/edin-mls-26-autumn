@@ -1,0 +1,77 @@
+Command: make SM=90 BUILD=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4 SRC=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc 'NVCCFLAGS=-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0' -j2 all
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-gcik25l8
+NVCC_CCBIN: /usr/bin/g++
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc -c /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc/task2_reduce.cu -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task2_reduce.o
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc -c /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc/task1_rope.cu -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task1_rope.o
+ptxas info    : 24 bytes gmem
+ptxas info    : Compiling entry function '_Z11rope_kernelPfS_PKfiiiiiii' for 'sm_90'
+ptxas info    : Function properties for _Z11rope_kernelPfS_PKfiiiiiii
+    32 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 28 registers, used 0 barriers, 32 bytes cumulative stack size
+ptxas info    : Compile time = 25.835 ms
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z14softmax_kernelPKfPfi' for 'sm_90'
+ptxas info    : Function properties for _Z14softmax_kernelPKfPfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, used 1 barriers, 256 bytes smem
+ptxas info    : Compile time = 25.910 ms
+ptxas info    : Compiling entry function '_Z14rmsnorm_kernelPKfS0_Pfif' for 'sm_90'
+ptxas info    : Function properties for _Z14rmsnorm_kernelPKfS0_Pfif
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 10.091 ms
+ptxas info    : Compiling entry function '_Z16layernorm_kernelPKfS0_S0_Pfif' for 'sm_90'
+ptxas info    : Function properties for _Z16layernorm_kernelPKfS0_S0_Pfif
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, used 1 barriers, 128 bytes smem
+ptxas info    : Compile time = 11.659 ms
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc -c /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc/task3_gemm.cu -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task3_gemm.o
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc -c /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc/task4_attention.cu -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task4_attention.o
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z22linear_register_kernelPKfS0_S0_Pfiiii' for 'sm_90'
+ptxas info    : Function properties for _Z22linear_register_kernelPKfS0_S0_Pfiiii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 56 registers, used 1 barriers, 8448 bytes smem
+ptxas info    : Compile time = 102.345 ms
+ptxas info    : Compiling entry function '_Z16linear_m1_kernelPKfS0_S0_Pfiii' for 'sm_90'
+ptxas info    : Function properties for _Z16linear_m1_kernelPKfS0_S0_Pfiii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, used 0 barriers
+ptxas info    : Compile time = 11.199 ms
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z16attention_kernelPKfS0_S0_Pfiiiiifi' for 'sm_90'
+ptxas info    : Function properties for _Z16attention_kernelPKfS0_S0_Pfiiiiifi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 40 registers, used 1 barriers
+ptxas info    : Compile time = 65.423 ms
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc -c /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc/provided.cu -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/provided.o
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z16im2col_1d_kernelPKfPfiiiiiii' for 'sm_90'
+ptxas info    : Function properties for _Z16im2col_1d_kernelPKfPfiiiiiii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 20 registers, used 0 barriers
+ptxas info    : Compile time = 8.632 ms
+ptxas info    : Compiling entry function '_Z16embedding_kernelPKlPKfPfii' for 'sm_90'
+ptxas info    : Function properties for _Z16embedding_kernelPKlPKfPfii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 12 registers, used 0 barriers
+ptxas info    : Compile time = 3.603 ms
+ptxas info    : Compiling entry function '_Z15silu_mul_kernelPKfS0_Pfi' for 'sm_90'
+ptxas info    : Function properties for _Z15silu_mul_kernelPKfS0_Pfi
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 16 registers, used 0 barriers
+ptxas info    : Compile time = 8.030 ms
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc -shared /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task1_rope.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task2_reduce.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task3_gemm.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task4_attention.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/provided.o -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/libasr_kernels.so
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc tests/test_task1_rope.cu /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task1_rope.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task2_reduce.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task3_gemm.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task4_attention.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/provided.o -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/test_task1_rope -lcublas -Xlinker -rpath -Xlinker /opt/cuda-12.8.0/lib64
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc tests/test_task2_reduce.cu /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task1_rope.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task2_reduce.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task3_gemm.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task4_attention.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/provided.o -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/test_task2_reduce -lcublas -Xlinker -rpath -Xlinker /opt/cuda-12.8.0/lib64
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc tests/test_task3_gemm.cu /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task1_rope.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task2_reduce.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task3_gemm.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task4_attention.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/provided.o -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/test_task3_gemm -lcublas -Xlinker -rpath -Xlinker /opt/cuda-12.8.0/lib64
+nvcc -O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0 -arch=sm_90 -Xcompiler -fPIC -I/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/source/csrc tests/test_task4_attention.cu /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task1_rope.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task2_reduce.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task3_gemm.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/task4_attention.o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/obj/provided.o -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/attention/build/w4/test_task4_attention -lcublas -Xlinker -rpath -Xlinker /opt/cuda-12.8.0/lib64
+ptxas info    : 0 bytes gmem
+ptxas info    : 0 bytes gmem
+ptxas info    : Compiling entry function '_Z19linear_naive_kernelPKfS0_Pfiii' for 'sm_90'
+ptxas info    : Function properties for _Z19linear_naive_kernelPKfS0_Pfiii
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+ptxas info    : Used 32 registers, used 0 barriers
+ptxas info    : Compile time = 12.965 ms

@@ -1,0 +1,626 @@
+{
+  "status": "complete",
+  "part": "gemm",
+  "stage": "gemm",
+  "baseline": "tiled16",
+  "variants": [
+    {
+      "name": "tiled16",
+      "impl": 0,
+      "tile": 16,
+      "rm": 2,
+      "rn": 2,
+      "m1": 1,
+      "hybrid": 0,
+      "warps": 4,
+      "flags": "-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=0 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=2 -DASR_TASK3_RN=2 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0",
+      "build": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled16",
+      "library": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled16/libasr_kernels.so"
+    },
+    {
+      "name": "tiled32",
+      "impl": 0,
+      "tile": 32,
+      "rm": 2,
+      "rn": 2,
+      "m1": 1,
+      "hybrid": 0,
+      "warps": 4,
+      "flags": "-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=0 -DASR_TASK3_TILE=32 -DASR_TASK3_RM=2 -DASR_TASK3_RN=2 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0",
+      "build": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled32",
+      "library": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/tiled32/libasr_kernels.so"
+    },
+    {
+      "name": "rb2x2",
+      "impl": 1,
+      "tile": 16,
+      "rm": 2,
+      "rn": 2,
+      "m1": 1,
+      "hybrid": 0,
+      "warps": 4,
+      "flags": "-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=2 -DASR_TASK3_RN=2 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0",
+      "build": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x2",
+      "library": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x2/libasr_kernels.so"
+    },
+    {
+      "name": "rb2x4",
+      "impl": 1,
+      "tile": 16,
+      "rm": 2,
+      "rn": 4,
+      "m1": 1,
+      "hybrid": 0,
+      "warps": 4,
+      "flags": "-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=2 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0",
+      "build": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x4",
+      "library": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb2x4/libasr_kernels.so"
+    },
+    {
+      "name": "rb4x4",
+      "impl": 1,
+      "tile": 16,
+      "rm": 4,
+      "rn": 4,
+      "m1": 1,
+      "hybrid": 0,
+      "warps": 4,
+      "flags": "-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=0 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0",
+      "build": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb4x4",
+      "library": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/rb4x4/libasr_kernels.so"
+    },
+    {
+      "name": "hybrid",
+      "impl": 1,
+      "tile": 16,
+      "rm": 4,
+      "rn": 4,
+      "m1": 1,
+      "hybrid": 1,
+      "warps": 4,
+      "flags": "-O3 -std=c++17 -lineinfo -diag-suppress 177 -Xptxas=-v -DASR_TASK3_GEMM_IMPL=1 -DASR_TASK3_TILE=16 -DASR_TASK3_RM=4 -DASR_TASK3_RN=4 -DASR_TASK3_M1_ENABLED=1 -DASR_TASK3_M1_WARPS=4 -DASR_TASK3_HYBRID_KV=1 -DASR_ATTN_WARPS=4 -DASR_ATTN_ONLINE_MODE=0",
+      "build": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/hybrid",
+      "library": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/gemm/build/hybrid/libasr_kernels.so"
+    }
+  ],
+  "gpu": {
+    "name": "NVIDIA H200 MIG 1g.18gb",
+    "sm": "90",
+    "multiprocessors": 16,
+    "memory_bytes": 17179869184,
+    "torch_version": "2.10.0+cu128",
+    "torch_cuda": "12.8"
+  },
+  "python": "3.11.18 (main, Oct 26 2026, 11:35:17) [GCC 15.3.0]",
+  "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+  "cases": [
+    [
+      "m_tail_16",
+      16,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_31",
+      31,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_32",
+      32,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_33",
+      33,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_48",
+      48,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_59",
+      59,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_63",
+      63,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_64",
+      64,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_65",
+      65,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_71",
+      71,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_80",
+      80,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_96",
+      96,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "m_tail_128",
+      128,
+      2048,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m32_n256",
+      32,
+      256,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m32_n512",
+      32,
+      512,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m32_n1024",
+      32,
+      1024,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m64_n256",
+      64,
+      256,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m64_n512",
+      64,
+      512,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m64_n1024",
+      64,
+      1024,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m65_n256",
+      65,
+      256,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m65_n512",
+      65,
+      512,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m65_n1024",
+      65,
+      1024,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m96_n256",
+      96,
+      256,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m96_n512",
+      96,
+      512,
+      2048,
+      0,
+      0
+    ],
+    [
+      "n_scan_m96_n1024",
+      96,
+      1024,
+      2048,
+      0,
+      0
+    ],
+    [
+      "k1024",
+      64,
+      512,
+      1024,
+      0,
+      0
+    ],
+    [
+      "k4096",
+      64,
+      512,
+      4096,
+      0,
+      0
+    ],
+    [
+      "encoder_q",
+      1500,
+      1280,
+      1280,
+      1,
+      0
+    ],
+    [
+      "encoder_fc1",
+      1500,
+      5120,
+      1280,
+      1,
+      1
+    ],
+    [
+      "encoder_fc2",
+      1500,
+      1280,
+      5120,
+      1,
+      0
+    ],
+    [
+      "edge_m2",
+      2,
+      5,
+      7,
+      0,
+      0
+    ],
+    [
+      "edge_bias_gelu",
+      3,
+      7,
+      33,
+      1,
+      1
+    ],
+    [
+      "edge_odd",
+      37,
+      100,
+      33,
+      1,
+      0
+    ],
+    [
+      "edge_gelu",
+      45,
+      77,
+      129,
+      1,
+      1
+    ],
+    [
+      "edge_tiles",
+      17,
+      65,
+      31,
+      0,
+      1
+    ],
+    [
+      "edge_short_k",
+      65,
+      33,
+      7,
+      1,
+      0
+    ],
+    [
+      "edge_k1",
+      31,
+      17,
+      1,
+      0,
+      0
+    ]
+  ],
+  "attention_cases": [
+    [
+      "tiny",
+      1,
+      1,
+      1,
+      4,
+      5,
+      32,
+      0,
+      1,
+      0
+    ],
+    [
+      "odd_gqa",
+      2,
+      4,
+      2,
+      17,
+      37,
+      64,
+      0,
+      2,
+      0
+    ],
+    [
+      "peaky",
+      1,
+      2,
+      2,
+      9,
+      100,
+      32,
+      0,
+      8,
+      0
+    ],
+    [
+      "very_peaky",
+      1,
+      2,
+      1,
+      33,
+      65,
+      128,
+      0,
+      16,
+      0
+    ],
+    [
+      "late_max",
+      1,
+      2,
+      2,
+      5,
+      97,
+      64,
+      0,
+      1,
+      2
+    ],
+    [
+      "negative_scores",
+      1,
+      1,
+      1,
+      7,
+      65,
+      32,
+      0,
+      1,
+      3
+    ],
+    [
+      "uniform",
+      1,
+      4,
+      2,
+      11,
+      71,
+      128,
+      0,
+      1,
+      1
+    ],
+    [
+      "causal",
+      1,
+      4,
+      2,
+      70,
+      70,
+      128,
+      1,
+      4,
+      0
+    ],
+    [
+      "cache_q5",
+      2,
+      4,
+      2,
+      5,
+      37,
+      32,
+      1,
+      4,
+      0
+    ],
+    [
+      "cache_q1",
+      1,
+      16,
+      4,
+      1,
+      71,
+      128,
+      1,
+      4,
+      0
+    ],
+    [
+      "masked_prefix",
+      1,
+      2,
+      1,
+      33,
+      5,
+      64,
+      1,
+      4,
+      0
+    ],
+    [
+      "dim96",
+      1,
+      3,
+      1,
+      19,
+      35,
+      96,
+      0,
+      4,
+      0
+    ],
+    [
+      "decoder",
+      1,
+      16,
+      4,
+      64,
+      64,
+      128,
+      1,
+      4,
+      0
+    ],
+    [
+      "encoder",
+      1,
+      20,
+      20,
+      1500,
+      1500,
+      64,
+      0,
+      4,
+      0
+    ],
+    [
+      "length_32",
+      1,
+      20,
+      20,
+      32,
+      32,
+      64,
+      0,
+      4,
+      0
+    ],
+    [
+      "length_128",
+      1,
+      20,
+      20,
+      128,
+      128,
+      64,
+      0,
+      4,
+      0
+    ],
+    [
+      "length_512",
+      1,
+      20,
+      20,
+      512,
+      512,
+      64,
+      0,
+      4,
+      0
+    ],
+    [
+      "causal_tail65",
+      1,
+      16,
+      4,
+      65,
+      65,
+      128,
+      1,
+      4,
+      0
+    ]
+  ],
+  "repeats": 7,
+  "warmup": 5,
+  "iterations": 20,
+  "seed": 21,
+  "skip_model": true,
+  "model_blocks": 3,
+  "model_runs": 10,
+  "model_warmup": 3,
+  "build_environment": {
+    "tmpdir": "/home/s2955206/cuda-tmp/task3-gemm-ghkbp691",
+    "tmpdir_base": "/home/s2955206/cuda-tmp",
+    "inherited_tmpdir": "/home/s2955206/cuda-tmp",
+    "host_compiler": "/usr/bin/g++"
+  }
+}

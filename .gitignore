@@ -37,3 +37,5 @@ report/report_template_overleaf/*.bst
 report/report_template_overleaf/math_commands.tex
 report/report_template_overleaf/ICLR_2027_STYLE_SOURCE.txt
 report/report_template_overleaf/report.pdf
+report/output/*
+report/latex.zip

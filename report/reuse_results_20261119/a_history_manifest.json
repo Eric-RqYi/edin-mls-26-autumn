@@ -1,0 +1,51 @@
+[
+  {
+    "run": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/task3_gemm/results/20261117T192802Z-615737",
+    "status": "verified",
+    "kind": "gemm",
+    "gpu": {
+      "name": "NVIDIA H200 MIG 1g.18gb",
+      "sm": "90",
+      "multiprocessors": 16,
+      "memory_bytes": 17179869184,
+      "torch_version": "2.10.0+cu128",
+      "torch_cuda": "12.8"
+    },
+    "source_files": 28,
+    "metadata_sha256": "2f3fdd071559ee4a09f000efbf6028daa01b40daeddb476a0275881dbc1ccf8d"
+  },
+  {
+    "run": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/task4_attention/results/20261118T001456Z-748564",
+    "status": "verified",
+    "kind": "attention",
+    "gpu": {
+      "name": "NVIDIA H200 MIG 1g.18gb",
+      "sm": "90",
+      "multiprocessors": 16,
+      "memory_bytes": 17179869184,
+      "torch_version": "2.10.0+cu128",
+      "torch_cuda": "12.8"
+    },
+    "source_files": 33,
+    "metadata_sha256": "4eb8ee57aecf9bce13f490ae8887cca89726bbc3000e3029f04adac7a7dd0b9e"
+  },
+  {
+    "run": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/task4_attention/results/20261118T082810Z-1093639",
+    "status": "verified",
+    "kind": "inventory_only",
+    "gpu": {
+      "name": "NVIDIA H200 MIG 1g.18gb",
+      "sm": "90",
+      "multiprocessors": 16,
+      "memory_bytes": 17179869184,
+      "torch_version": "2.10.0+cu128",
+      "torch_cuda": "12.8"
+    },
+    "source_files": 33,
+    "metadata_sha256": "10f33396daaef79b6bdb6ba4b81fe3938b4373452b2c842a44c4247d3e6be131"
+  },
+  {
+    "run": "/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/task3_m1/results/20261117T154855Z-483031",
+    "status": "not_imported_missing_source_manifest"
+  }
+]

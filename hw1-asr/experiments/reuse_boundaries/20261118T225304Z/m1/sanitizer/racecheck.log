@@ -1,0 +1,11 @@
+Command: compute-sanitizer --error-exitcode 99 --tool racecheck /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/benchmark_gemm --cases /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/cases.csv --small --correctness-only tiled16_raw=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/tiled16_raw/libasr_kernels.so rb4x4_raw=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/rb4x4_raw/libasr_kernels.so m1_w4=/home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/build/m1_w4/libasr_kernels.so
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-o1y7rd0s
+NVCC_CCBIN: /usr/bin/g++
+========= COMPUTE-SANITIZER
+GPU: NVIDIA H200 MIG 1g.18gb (sm_90), 16 SMs, peak memory bandwidth about 563 GB/s
+
+m1_tail              tiled16_raw PASS max_err=6.710e-08 ref=CPU_double
+m1_tail              rb4x4_raw PASS max_err=6.710e-08 ref=CPU_double
+m1_tail              m1_w4    PASS max_err=3.567e-08 ref=CPU_double
+Task 3 GEMM experiment: ALL PASS
+========= RACECHECK SUMMARY: 0 hazards displayed (0 errors, 0 warnings)

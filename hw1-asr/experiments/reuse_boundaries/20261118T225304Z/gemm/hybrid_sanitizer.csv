@@ -1,0 +1,2 @@
+case,M,N,K,bias,act
+hybrid_m2,2,512,2048,0,0

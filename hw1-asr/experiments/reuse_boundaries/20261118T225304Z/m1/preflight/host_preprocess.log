@@ -1,0 +1,3 @@
+Command: /usr/bin/g++ -std=c++17 -E -x c++ /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/preflight/host_probe.cpp -o /home/s2955206/edin-mls-26-autumn/hw1-asr/experiments/reuse_boundaries/results/20261118T225304Z/m1/preflight/host_probe.ii
+TMPDIR: /home/s2955206/cuda-tmp/task3-gemm-o1y7rd0s
+NVCC_CCBIN: /usr/bin/g++
