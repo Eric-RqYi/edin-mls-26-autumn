@@ -39,12 +39,13 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{float}
+\usepackage{tikz}
 
 
 % The official ICLR archive includes math_commands.tex. It is optional:
 \input{math_commands.tex}
 
-\title{Data reuse in CUDA speech recognition\\and its effect on audio-to-answer latency}
+\title{Optimising CUDA speech recognition kernels by data reusing}
 
 % Keep this line unchanged.
 \author{Anonymous coursework submission}
@@ -85,163 +86,278 @@
 \section{Introduction}
 \label{sec:introduction}
 
-In the course system, a spoken question is first transcribed by automatic speech recognition (ASR). A retrieval system uses the transcript to find relevant documents, and a language model answers using those documents. The user waits for all three steps.
+In the course system, a spoken question is first transcribed by automatic speech recognition (ASR). A retrieval system uses the transcript to find relevant documents, and a language model answers using those documents. The user waits for all three steps. In our investigation, we primarily forcused on the optimisation of ASR kernels. 
 
-We ask how much giving a GPU thread or block more work can reduce latency by reusing data already on the chip, and which input shapes limit that gain. % need more general research questions; "Clarify why the question matters"
-We start with the four CUDA tasks completed as prescribed by the course. We let each thread compute more entries in a matrix product and let each attention block serve more queries from the same data. Two matrix shapes also receive specialised paths. On a reference recording, changing the general matrix kernel reduced model time by 43\% with the single-row kernel and four attention warps held fixed. On 30 development queries, the full set of changes sped up the core ASR by \(1.98\times\) and the complete audio-to-answer request by \(1.46\times\) in paired measurements. The retrieved evidence stayed the same. Short and narrow workloads expose a cost of grouping more work together, and the remote answer service remains a substantial part of a request.
+We have noticed that in the provided GEMM and attention kernel, which all together takes over 99\% of time when running on the test audio (see appendix~\ref{app:profile}), the data can be further reused by increasing the work allocated to each unit. This is supposed to have a large influence to the final performance as pointed out in the Roofline model\citep{williams2009roofline}.
+But this modification also faces the trade-off of resource cost, degree of parallelism, and computation waste.
+
+Therefore, we explores two questions with experiments: a) Can we lower latency by giving each thread or block more work so it can reuse more data? b) When a larger tile leaves slots empty or creates too few blocks, how much can a kernel designed for that shape recover?
 
 \section{System and Technical Approach}
 \label{sec:approach}
 The course supplies the GLM-ASR-Nano model, its Python code, model weights, and the retrieval and answer pipeline \citep{course-asr,course-rag}. Python passes GPU tensor addresses and the CUDA stream to our compiled kernel library. The audio encoder processes the recording once. The text decoder generates the transcript a token at a time and recomputes its sequence at each step, because this model keeps no cache of previous keys and values. Its final linear layer scores vocabulary entries from just the last position. 
 
-At the start of retrieval-augmented generation (RAG), a CPU encoder turns the transcript into a query vector. An exact search over the supplied document vectors selects five records. Their text and the transcript form the prompt sent to the university's ELM answer service. % Don't need descriptions on modules we didn't modify
-We changed which CUDA kernels run inside ASR while keeping the interfaces and the downstream retrieval and prompt-building code fixed.
+The focus of our exploration is on the optimisation for ASR, therefore, we have changed the ASR kernel in the pipeline while keeping the other codes of RAG fixed.
 
-\subsection{Anser to the ASR questions}
+\subsection{Answers to the ASR questions}
+\label{sec:asr-questions}
 
 \paragraph{Task 1 (Q3). Why rotate both queries and keys in one launch?}
-Rotary position embedding (RoPE) rotates pairs of query and key values by position-dependent angles before attention compares them. We index both sets of pairs in the same kernel, with one thread per pair and no dependency between the two sets. The reference recording calls RoPE 396 times, so fusing the two launches avoids 396 separate kernel submissions per transcription. Each pair still needs its own loads, rotation and stores. The saving is in launch overhead. % This does not answer the question "why worth it"
+Fusing the query and key rotations saves 396 kernel launches per transcription. Each launch incurs work to submit and start the kernel. The model calls rotary position embedding (RoPE) 396 times, so separate launches for \(q\) and \(k\) would require \(2\times396=792\) launches. Their pairs can be rotated independently, so threads in one grid can process both arrays with the same arithmetic and memory accesses.
 
 \paragraph{Task 2 (Q2). How does subtracting the maximum stabilise softmax?}
-Threads combine partial values within warps (groups of 32 threads) and then across the block. We use these reductions for normalisation and to track the maximum and sum needed by softmax, which turns scores into probabilities. In float32, \(\exp(100)\) overflows to positive infinity. For finite scores \(x_i\), shifting them by \(m=\max_i x_i\) makes each exponential at most 1, with at least one term equal to 1. The common factor \(e^{-m}\) cancels between numerator and denominator, so the exact probabilities are unchanged. % Explain more on why \exp(100) overflows; Add more maths provement for the later two questions.
+\texttt{expf(100.0f)} returns \(+\infty\) in float32. Because the largest finite float32 value is \((2-2^{-23})2^{127}\approx3.40\times10^{38}\), while \(e^{100}\approx2.69\times10^{43}\). Subtracting the row maximum prevents exponential overflow and preserves the exact softmax probabilities.  With \(m=\max_i x_i\), every \(x_i-m\le0\) and at least one is zero, so the shifted sum of exponentials lies between \(1\) and \(513\), the row length. In exact arithmetic, \(e^{x_i-m}/\sum_j e^{x_j-m}=e^{x_i}/\sum_j e^{x_j}\) because \(e^{-m}\) cancels.
 
 \paragraph{Task 3 (Q1). How many input values does each matrix kernel request?}
-The linear layer multiplies \(X[M,K]\) by \(W[N,K]^\top\), with \(M\) input rows, \(N\) output columns and dot products of length \(K\). In the naive kernel each output requests two floats per dot-product step. At \(M=N=K=1024\) that is \(2MNK=2{,}147{,}483{,}648\) floats. Our completed course kernel cooperatively loads two \(16\times16\) input tiles into shared memory, which threads in the block can all read. Each requested input then serves 16 outputs, bringing the count down to \(2MNK/16=134{,}217{,}728\) floats.
- The count covers operands and ignores caches. We apply any bias and GELU activation before writing each output. % This line doesn't seem necessary
+At \(M=N=K=1024\), the naive kernel requests \(2{,}147{,}483{,}648\) floats from global memory and our Tiled-16 kernel requests \(134{,}217{,}728\), ignoring caches. Each of the \(1024^2\) naive outputs reads an input and a weight at each of \(1024\) dot-product steps, for \(2\cdot1024^3\) loads. Tiled-16 launches \(64^2\) blocks, each taking \(64\) steps along \(K\) and loading one \(16\times16\) tile from \(X\) and one from \(W\) per step. That is \(64^2\cdot64\cdot2\cdot16^2\) loads. In section~\ref{sec:results}, experiments A and B test how this reuse trade-off changes with wider tiles and different shapes.
 
 \paragraph{Task 4 (Q4). How often is each encoder key loaded?}
-A query is compared with keys to decide how much each value contributes to the output. % Unnecessary line
-One warp works on one query, and multiple warps can share the same keys and values. Each block loads them into shared memory in tiles of 32 and combines contributions across tiles using the running softmax from Task 2. It can produce the output without storing a full matrix of attention scores in global memory. A non-causal encoder head has 1,500 queries that all attend to every key, so with four warps per block each key is requested \(\lceil1500/4\rceil=375\) times per head per layer. Sixteen warps reduce that to 94. Larger blocks need more threads, registers and shared memory for the queries, which can limit how many blocks fit on a multiprocessor. There are also fewer blocks to schedule, and any leftover queries leave a partly used block. Hardware caches can serve some of the repeated requests. % Should answer the question more clearly; foreshadow our improvement
+With \texttt{ATTN\_WARPS=4}, each key of one encoder head is requested from global memory 375 times per layer. GPU resources and the number of blocks available to run in parallel limit how far we can increase the warp count. Every encoder query attends to every key. Each block handles up to \(w\) queries, one per warp, and loads each key once. This gives \(\lceil1500/w\rceil\) requests per key, or \(\lceil1500/4\rceil=375\) at four warps and \(\lceil1500/16\rceil=94\) at sixteen. A block uses \(32w\) threads and stores \(wd\) query values in shared memory for head dimension \(d\). More threads, registers and shared memory can limit how many blocks fit on a multiprocessor. A larger \(w\) also creates fewer blocks and can leave more idle warps in the last block. In our experiment C, it is checked that whether fewer loads actually reduce latency.
 
-\subsection{Changes to the kernels}
+\subsection{Modification to the kernels}
 
-\paragraph{More GEMM per-thread output.} % should give out the design trade-off and theoretical improvement
-The course kernel assigns one output to each of 256 threads. We keep the same thread count and still load the inputs in chunks of 16 along \(K\). Each thread now computes four output rows by four output columns, so we call it \emph{4-by-4}. At each position along the dot products, a thread reads four input numbers and four weights from shared memory. It uses each number four times and keeps all 16 partial sums in registers. The block covers a \(64\times64\) output tile and can share each global load across more outputs. A \(32\times32\) tile with one output per thread needs 1,024 threads. Our design covers an even larger tile with fewer threads and uses more registers per thread.
+\paragraph{More outputs per GEMM thread.}
+We enlarge the output tile to reuse more data. The costs of which are more registers and shared memory, fewer blocks to run in parallel, and extra work in partial tiles. We keep 256 threads per block and give each thread a \(4\times4\) patch of outputs and 16 partial sums. This grows the block's tile from \(16\times16\) to \(64\times64\). At each position along \(K\), a full \(t\times t\) tile loads \(t\) inputs and \(t\) weights for \(t^2\) multiply-adds. Global-memory requests per multiply-add fall from \(2/16\) to \(2/64\), a \(75\%\) reduction. We expect the saving to pay off on large encoder projections. A \(1500\times1280\) output still gives \(24\times20=480\) mostly full blocks for 16 multiprocessors.
 
-\paragraph{Two exceptions to 4-by-4.} % Need to rewrite as: problem -> reason -> change we made; current version is too unclear
-For one output row (\(M=1\)), the vocabulary layer needs a vector multiplied by a weight matrix. We assign one warp to each output column. Neighbouring lanes read neighbouring weights along \(K\), then exchange their partial sums within the warp. Four warps form a block, with no block-wide barriers or shared tile to fill. For the decoder's narrower key and value projections, we choose the \(32\times32\) tiled kernel when \(M>1,N=512,K=2048\). It covers fewer rows and columns per block than 4-by-4, leaving more blocks to schedule and less work at some partially filled tiles. We keep this rule tied to the dimensions of a frequently called projection. A broader rule based on column count alone would also affect shapes we have not tested in the model.
+\paragraph{Two exceptions to 4-by-4.}
+Figure~\ref{fig:gemm-dispatch} shows how we select a kernel from the matrix shape. The vocabulary projection has \(M=1\), so only one row of a 64-row tile is useful. The single-row path assigns a warp to each output column. Its lanes read consecutive weights along \(K\) and sum their partial results within the warp. The decoder's narrow key and value projections can leave too few blocks to use the slice. For \(M=64,N=512\), the smaller output tiles of Tiled-32 yield 32 blocks, up from eight with 4-by-4 on our 16-multiprocessor slice.
 
-\paragraph{More queries per attention block.} % call back to asnwer 4.4; Also should give theoretical improvements
-We increase the block from four to 16 warps (128 to 512 threads). Up to 16 queries then share each tile of keys and values. We use one setting across the model because the largest attention cost is in the long encoder and the fixed setting lowers the total model time on the reference recording. We retain the tile width, online softmax and the decoder mask that hides future positions.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  box/.style={rectangle, draw, minimum height=20pt, inner sep=3pt, font=\small},
+  test/.style={box, draw=black!45, fill=black!3},
+  path/.style={box, draw=blue!50!black, fill=blue!7},
+  branch/.style={->, >=latex, semithick, draw=black!75},
+  note/.style={font=\footnotesize, inner sep=2pt}
+]
+\node[test, minimum width=82pt] (single) at (0,0) {\(M=1\)?};
+\node[test, minimum width=120pt] (narrow) at (140pt,0) {\(N=512\) and \(K=2048\)?};
+\node[path, minimum width=90pt] (general) at (289pt,0) {4-by-4 GEMM};
+\node[path, minimum width=82pt] (vector) at (0,-38pt) {Single-row path};
+\node[path, minimum width=120pt] (tiled) at (140pt,-38pt) {Tiled-32 (narrow rule)};
+\draw[branch] (single) -- node[note, above] {\(M>1\)} (narrow);
+\draw[branch] (narrow) -- node[note, above] {Otherwise} (general);
+\draw[branch] (single) -- node[note, right] {Yes} (vector);
+\draw[branch] (narrow) -- node[note, right] {Yes} (tiled);
+\end{tikzpicture}
+\caption{GEMM dispatch by output rows \(M\), output columns \(N\), and dot-product length \(K\).}
+\label{fig:gemm-dispatch}
+\end{figure}
+
+\paragraph{More queries per attention block.}
+We change the number of warps per block from four to 16. As Task 4 shows (Section~\ref{sec:asr-questions}), that takes the encoder from 375 to 94 load requests per key or value per head per layer, about \(75\%\) fewer. Each block grows from 128 to 512 threads and must hold more query data. The long encoder still has more blocks per head than the slice has multiprocessors, so we expect the added reuse to pay off there. Short sequences offer fewer blocks, and a partial final block can leave more warps idle. We keep the key--value tile size, online softmax and decoder mask fixed.
 
 \section{Experimental Methodology}
 \label{sec:methodology}
 
-All latency comparisons were made within an allocation on the teaching cluster using the NVIDIA H200 MIG \texttt{1g.18gb} slice (16 streaming multiprocessors), CUDA 12.8 and float32 ASR. The ASR Python environment used PyTorch 2.10.0+cu128 to store tensors and run the supplied model. We used the following comparisons to connect kernel behaviour to total latency of the RAG system.
+The completed course implementation is our system baseline, with \(16\times16\) GEMM output tiles (\emph{Tiled-16}) for all the linear layer and four attention warps. The later part of this report also refers to this baseline as \emph{Original}. Each comparison used a single teaching-cluster allocation with an NVIDIA H200 MIG \texttt{1g.18gb} slice (16 streaming multiprocessors), CUDA 12.8 and float32 ASR under PyTorch 2.10.0+cu128.
 
-\begin{enumerate}
-\item \textbf{Kernels.} We timed isolated CUDA kernels on model shapes, then chose additional cases just before and after tile boundaries to test where the selected layouts lose their advantage. We compared \(16\times16\) and \(32\times32\) square tiles and register groups of \(2\times2,2\times4,4\times4\). We compared both general matrix layouts and the warp-based path separately at \(M=1\). 
-% Should have a separate paragraph here
-The attention sweep % The jargon attention sweep must be replaced
-used 1, 2, 4, 8 and 16 warps, both on model cases and on synthetic sequence lengths. The boundary tests warmed up each case for five calls. % Also need clarification: does this mean five calls' warm up?
-We report the median of seven CUDA-event measurements, each averaging 20 calls on resident tensors. 
-Repeated access can warm the hardware caches for inputs that fit. % unclear sentence
-In the model, consecutive layers use different weights, so their times can differ from these isolated measurements. Missing outputs and out-of-tolerance values were checked against double-precision CPU references or float32 cuBLAS for large matrix products. All four course test suites passed. The ten course matrix cases fall outside the narrow projection rule. A separate case \((M,N,K)=(2,512,2048)\) exercises that path and passed the CPU reference check and memory, race and synchronisation checks. % Rewriting required
-\item \textbf{Reference audio.} We timed the supplied 3.5-second \texttt{test\_audio.wav} with all CUDA tasks enabled. Timed model generation includes the audio encoder and greedy decoder, starting from prepared GPU tensors. Each variant had three warm-ups and ten randomly interleaved trials in each of three model processes. In one GPU allocation, we compared 4-by-4 and other general matrix kernels with the course tile, using the same single-row path and four attention warps for every version. In a separate allocation, we held 4-by-4 and the single-row kernel fixed and tested the narrow projection rule and the warp increase alone and together. Separate runs collect per-operation GPU event times so the timed trials do not carry the profiler's overhead.
-\item \textbf{Complete requests.} The original configuration reproduces the completed course implementation for the workload (16-wide tiles, general path at \(M=1\), narrow projection rule off and four attention warps). The final version uses 4-by-4, both special cases and 16 attention warps. % Should be baseline vs. improved version
-We compiled both from the same code with different options and verified which library ran. We split the 125 development audio queries into three roughly equal duration strata, % can give specific duration span of each?
-sampled ten from each (seed 21), and fixed that list before timing. After two practice requests per variant, we ran three pairs for each of the 30 queries in random query and within-pair order. Both versions use the same CPU \texttt{enc\_a} encoder, exact top-five retrieval, prompt construction and ELM model (EuroLLM-22B-Instruct-2512, temperature 0.1). Each request recomputes the transcript and makes a real generation call. There were 180 timed requests, all successful with client retries disabled.
-\end{enumerate}
+\paragraph{A. Change the general GEMM layout.}
+Each block in the baseline GEMM computes a 16 tile of the output matrix, with each of its threads computes 1 element. We made experiments by testing square tiles of width 8 and 32 (\emph{Tiled-8} and \emph{Tiled-32}) and per-thread layouts with \(2\times2\), \(2\times4\) and \(4\times4\) outputs per thread (\emph{2-by-2}, \emph{2-by-4}, \emph{4-by-4}). We timed each layout on the same model-shaped tensors, then on the course's 3.5-second \texttt{test\_audio.wav}. 
 
-Core ASR measures the synchronised model call. Full request time starts with the audio request and includes reading and preparing the audio, ASR worker communication, local encoding and retrieval, prompt assembly and the remote answer call. Both exclude one-time startup and model and index loading. We first take the median of three paired differences or ratios for each query, then the median across queries. We resample queries 2,000 times for a 95\% bootstrap interval on the median saving. For correctness we check token and transcript equality, compare the vectors, search results and prompts, and score retrieval against the course relevance labels.
+\paragraph{B. Test the GEMM exceptions.}
+To test the edge of this benefits of \emph{4-by-4} layout, we further tested different kernel's performance on different matrix shapes. 
+We first varied M and N around tile boundaries and calculated block counts and operand requests from the dimensions. 
+Then, for matrix with \(M=1\), we held the shape and operands fixed and timed Tiled-16, 4-by-4, and the single-row specific GEMM kernel. We used the number of vocabulary calls in the reference recording to estimate the impact of the per-call saving. For \(N=512,K=2048,M>1\), we varied \(M\) and compared 4-by-4 with Tiled-32, the kernel selected by the narrow rule. A separate \(M=2\) case explicitly exercised the rule against a CPU reference and under memory, race and synchronisation checks. The course GEMM suite covers other shapes.
+
+\paragraph{C. Vary attention warps per block.}
+The attention kernel can be optimised under the similar idea. As is calculated in section~\ref{sec:asr-questions}, each key and value will be requested \(\lceil1500/\texttt{ATTN\_WARPS}\rceil\) times, so increasing this value should theoretically reduce time of data transmission.
+We timed 1, 2, 8 and 16 warps on the same tensors while keeping the 32-key tiles fixed. Also, we used model shapes and synthetic lengths near tile boundaries, then counted tile visits to interpret the timings.
+
+In addition, to check the performance when the previous strategies are combined, we conducted another round of experiment. Here we compared the result of enabling the Tiled-32 narrow rule only, 16 warps only, and applying both. The general GEMM and single-row path stayed fixed. We compared the combined saving against the sum of the individual savings.
+
+\paragraph{D. Run the full request with all changes enabled.}
+We compiled the baseline and \emph{Final} from the same source and verified the loaded library in each request. Final uses 4-by-4 GEMM kernel, the single-row specific kernel, narrow matrix's Tiled-32 kernel and 16 attention warps. We split the 125 development recordings into three groups by duration and fixed a random sample of ten per group (seed 21). Sampled durations were 3.700--4.825, 4.950--6.075 and 6.200--8.425 seconds. After two practice requests per version, we ran three pairs per recording, randomising query order and which version ran first. Each request recomputed the transcript and called ELM live. The model weights, CPU \texttt{enc\_a} encoder, exact top-five retrieval, prompt builder and ELM settings (EuroLLM-22B-Instruct-2512, temperature 0.1) were fixed. Client retries were disabled.
+
+\paragraph{Timing and checks for for the experiments.}
+For test on isolated kernels, we ran five warm-up calls, followed by seven CUDA-event measurements of 20 calls each on preloaded tensors. We report the median time per call. Repeated access to one set of weights can favour caching compared with switching weights in the model. Numerical checks used double-precision CPU references or float32 cuBLAS for large matrix products. For the reference recording in A and C, each of three model processes ran three warm-up transcriptions per configuration and ten timed transcriptions per configuration in randomly interleaved order. Model latency measures synchronised generation from prepared GPU tensors. Extra transcriptions recorded per-operation GPU event totals outside the timed trials. We checked the generated tokens and the reference transcript, and ran the course test suites.
+
+For the RAG systems-cost, the measures were core ASR latency (synchronised model generation) and full request latency (audio input through answer return). We timed the ASR worker round trip, local query and retrieval steps, and the remote call. The worker also logged audio preparation time. Both measures exclude one-time startup and loading. We took the median of the paired time differences and ratios within each query, then across queries. We resampled queries 2,000 times for a 95\% interval on the median saving. We retained slow trials, logged feature shapes and token counts, and profiled one clip per duration group. We checked exact agreement of tokens, transcripts, rankings, context and prompts. For embeddings and scores we used absolute and relative tolerances of \(10^{-6}\) and \(10^{-5}\). We also measured Recall@5 against the course relevance labels.
 
 \section{Results and Analysis}
 \label{sec:results}
 
-\subsection{Matrix reuse helps large workloads and exposes small-shape limits}
+\subsection{General GEMM gains and limits}
 
-The encoder query projection and two feed-forward projections were about \(2.7\times\) faster with 4-by-4 than with the 16-wide tile. Holding single-row and attention settings fixed, the reference recording took 5.942~s with 16-wide tiles, 5.506~s with 32-wide tiles and 3.382~s with 4-by-4. The 2-by-2 and 2-by-4 versions took 4.626~s and 3.798~s. In the separate profile,
-% what does separate profile means
-the linear layers saved 2.560~s, nearly the same as the reduction in measured model latency. In the 16-wide comparison, 2,757 linear calls accounted for 82.8\% of the profiled time. The course benchmark output is in Appendix~\ref{app:profile}. % need a table here
-
-Table~\ref{tab:gemm} shows why the same grouping is less useful for smaller shapes. With 2,048 output columns, going from 64 to 65 rows adds only 1.6\% more valid outputs but requires a second band of 64-row tiles in 4-by-4. Just over half the output slots are valid, and latency rises by 50\%. With 32 rows and 256 columns, 4-by-4 issues 62.5\% fewer operand load requests by a count that ignores caches. It still takes \(3.42\times\) as long. It launches four blocks rather than 32, so at most four of the slice's 16 processors can work on it. The block still computes the unused output slots and writes back only valid results. The compiler reports 56 versus 32 registers per thread and 8,448 versus 2,112 bytes of shared memory per block, with no register spills for either version. These resource differences could also affect concurrent work. 
-Because the tile and work assignment change together, the timing cannot isolate their effects. Actual memory traffic was left unmeasured. % Can delete
-
-\begin{table}[tb]
-\centering
-\caption{Median matrix-kernel times on selected shapes in milliseconds. The last two rows show the change from full 64-row tiles to a partially used second band of tiles.}
-\label{tab:gemm}
-\begin{tabular}{@{}lrrr@{}}
-\toprule
-Shape \((M,N,K)\) & 16-wide tile & 4-by-4 & Single-row path \\
-\midrule
-Vocabulary \((1,59264,2048)\) & 4.058 & 5.812 & 0.886 \\
-Small, narrow \((32,256,2048)\) & 0.048 & 0.164 & -- \\
-\((64,2048,2048)\) & 0.610 & 0.304 & -- \\
-\((65,2048,2048)\) & 0.750 & 0.456 & -- \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-% the warp-based path performance is not shown in the table, also the name warp-based and the later 32-wide tile is confusing
-For the vocabulary layer, the uniform 4-by-4 runs through a 64-row tile with only one useful row. The warp-based path is \(4.58\times\) faster than the original tile. That layer runs only 13 times on the reference recording, so its single-call savings would amount to about 41~ms if they carried over directly, compared with seconds from the general matrix change. For the narrow projection (\(N=512,K=2048\)), switching from 4-by-4 to the 32-wide tile cut latency from 0.169 to 0.126~ms at \(M=64\). At \(M=65\) the same switch increased it from 0.169 to 0.185~ms. The rule covers several row counts because the decoder sequence grows during transcription. Table~\ref{tab:asr} measures its net effect across real calls without choosing a separate winner for each row count.
-
-\subsection{Attention reuse saves time, with limits at short sequences}
-
-Sixteen warps lowered the long encoder attention kernel from 29.86 to 22.60~ms (24\%). Each block can cover more queries with one load of a tile, as in Task 4. On a synthetic 32-query encoder case, eight warps took 0.0162~ms and 16 took 0.0168~ms. On the causal decoder case, 16 warps beat eight at length 64 (0.0496 versus 0.0561~ms). At length 65 the order reversed (0.0712 versus 0.0683~ms). % need figure/tables
-
-The 65th query needs a new block under either width. Only this new block needs a third tile of keys. It has one warp with a query and 15 or seven spare warps for the wider and narrower blocks, respectively. Spare warps still help load the tiles and wait at the block barriers. The wider block can avoid some repeated key loads in the earlier blocks and still lose time at this boundary. These timings show the change in relative performance. They cannot isolate the cost of a partly used block from the effect of its resources on how many blocks fit at once. % need more analysis
-
-\begin{table}[tb]
-\centering
-\caption{Reference-audio comparison with 4-by-4 and the single-row kernel fixed. Model times are wall-clock medians. Model latency falls by the percentage shown relative to the four-warp control with the narrow projection rule off. Linear and attention times are GPU event medians from separate profiling runs.}
-\label{tab:asr}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-Configuration & Model (ms) & Model saving & Linear (ms) & Attention (ms) \\
-\midrule
-4 warps, no narrow rule & 3372.00 & -- & 2361.51 & 988.93 \\
-4 warps, narrow rule & 3336.70 & 1.05\% & 2325.89 & 988.98 \\
-16 warps, no narrow rule & 3129.04 & 7.21\% & 2360.75 & 746.56 \\
-16 warps, narrow rule & 3093.89 & 8.25\% & 2324.84 & 746.57 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The attention change saves about 243~ms on the reference audio, close to the 242~ms reduction in its profile events. Most of this is from encoder attention (232~ms). The narrow projection rule saves 35~ms across the reference transcription, close to the 36~ms reduction in the linear profile. The combined saving of 278~ms is close to the sum of the individual savings. The three process-level combined speedup estimates span \(1.0898\) to \(1.0900\times\). All reference-audio trials returned the same 13 token IDs and the expected transcript, \emph{Concord returned to its place amidst the tents.} On the same GPU allocation the combined version's \texttt{make test} passed all four tasks (4 RoPE, 11 reduction, 10 matrix and 8 attention cases). For example, the final encoder cases took 0.063~ms for RoPE, 0.059~ms for LayerNorm, 1.938~ms for the query projection and 22.601~ms for attention. Appendix~\ref{app:profile} gives the profiles, and Appendix~\ref{app:checks} gives the course test results for the combined version.
-
-\clearpage
-\subsection{Complete requests save less time than ASR alone}
+Table~\ref{tab:gemm-model} shows the result of experiment A.
+For a square output tile of width \(t\), let \(a=\lceil M/t\rceil\) and \(b=\lceil N/t\rceil\). The grid has \(ab\) blocks. Each row of \(X\) is read for each column tile, and each row of \(W\) for each row tile, so a kernel issues \(R=K(Mb+Na)\) operand elements. This counts valid operand requests before caching. A larger tile can lower \(R\) while still leaving enough blocks to keep the device busy on the encoder products. 4-by-4 gives the lowest model latency. Its drop in profiled linear time nearly matches the drop in model latency, consistent with the large gains on encoder products.
 
 \begin{table}[H]
 \centering
-\caption{Latency for 30 development queries, with three pairs per query. For each version, we take the median of three times for each query, then the median across queries. For each pair, speedup divides original time by final time and saving subtracts final time from original time. We summarise those paired values separately. The interval is for the median saving.}
-\label{tab:rag}
-\begin{tabular}{@{}lrrrrr@{}}
+\caption{Experiment A. Median ASR latency on the reference recording, separately profiled linear time, and selected encoder kernel times. The single-row path and attention settings are fixed in the model comparison.}
+\label{tab:gemm-model}
+\small
+\begin{tabular}{@{}lrrrrrr@{}}
 \toprule
-Metric & Original (s) & Final (s) & Speedup & Saving (s) & 95\% interval (s) \\
+ & Tiled-16 & Tiled-8 & Tiled-32 & 2-by-2 & 2-by-4 & 4-by-4 \\
 \midrule
-Core ASR & 7.865 & 3.983 & \(1.985\times\) & 3.932 & [3.437, 4.401] \\
-Full request & 12.729 & 8.440 & \(1.461\times\) & 3.760 & [3.230, 4.341] \\
+ASR (s) & 5.942 & 8.258 & 5.506 & 4.626 & 3.798 & 3.382 \\
+Linear profile (s) & 4.923 & -- & -- & -- & -- & 2.363 \\
+Encoder query (ms) & 5.256 & -- & -- & -- & -- & 1.940 \\
+Encoder FF expansion (ms) & 21.128 & -- & -- & -- & -- & 7.825 \\
+Encoder FF contraction (ms) & 21.367 & -- & -- & -- & -- & 7.959 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[H]
+\subsection{Shape-specific GEMM}
+
+On the small grid (Table~\ref{tab:gemm}), larger tiles cut operand requests but leave more multiprocessors idle. Timing worsens despite fewer requests. On the wider output, the extra row adds a band of blocks. Those blocks load another copy of the weights for each column tile while computing mostly empty output slots. Requests increase by \(50.8\%\) and latency by \(50.0\%\). The increase in requests and the extra block work both offer explanations.
+
+\begin{table}[H]
 \centering
-\includegraphics[width=\linewidth]{figures/stage-latency.pdf}
-\caption{Mean time by stage for 90 actual requests per configuration. Other local steps include audio input and preparation, communication with the ASR worker, query encoding, retrieval, prompt assembly and a small unassigned timing remainder. Values at the ends of the bars are the measured total means.}
-\label{fig:stages}
-\end{figure}
+\caption{Experiments A and B. Median GEMM time in ms. Calculated counts describe the work launched and valid operand requests before caching. The single-row estimate multiplies the kernel saving by the vocabulary call count.}
+\label{tab:gemm}
+\small
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+ & Shape \((M,N,K)\) & Tiled-16 & 4-by-4 & Tiled-32 & Single-row \\
+\midrule
+A & \((32,256,2048)\) & 0.0478 & 0.1636 & -- & -- \\
+A & \((64,2048,2048)\) & 0.6102 & 0.3038 & -- & -- \\
+A & \((65,2048,2048)\) & 0.7500 & 0.4559 & -- & -- \\
+B & \((1,59264,2048)\) & 4.0578 & 5.8120 & -- & 0.8865 \\
+B & \((64,512,2048)\) & -- & 0.1690 & 0.1261 & -- \\
+B & \((65,512,2048)\) & -- & 0.1691 & 0.1852 & -- \\
+\bottomrule
+\end{tabular}
 
-The median paired request saved 3.76~s, and the 95\% bootstrap interval for the median saving was 3.23 to 4.34~s (Table~\ref{tab:rag}). The gap between the ASR and full-request speedups reflects time spent outside the model. Figure~\ref{fig:stages} uses stage means from these same requests. Core ASR fell from 8.41 to 4.21~s, while the remote answer call stayed near 4.99~s. The call therefore grew from about 36\% to about half of the mean request time. If the mean time outside ASR had held steady, the measured 4.20~s improvement in core ASR would have put the mean request near 9.78~s. The observed mean was 9.99~s, in part because some local operations took unusually long.
+\smallskip
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Calculated check & Before & After \\
+\midrule
+A: Small grid, Tiled-16 to 4-by-4 (blocks / million requests) & 32 / 2.097 & 4 / 0.786 \\
+A: 4-by-4 at \(M=64\) to 65, \(N=2048\) (blocks / million requests) & 32 / 8.389 & 64 / 12.648 \\
+\quad Change in requests / latency & & \(+50.8\% / +50.0\%\) \\
+\quad Valid row slots & 100\% & 50.8\% \\
+B: Narrow projection at \(M=64\), 4-by-4 to Tiled-32 (blocks) & 8 & 32 \\
+\quad At \(M=65\) (blocks) & 16 & 48 \\
+B: Vocabulary estimate (calls / saving) & & 13 / 41.2\,ms \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Core ASR improved on all 30 queries by the paired median. One of those queries took 6.36~s longer by the same measure for the full request. In one repeat, audio preprocessing and query encoding alone took 11.25~s and 13.31~s. The measurements show that local delays contributed, but do not identify their cause. We kept those trials in the analysis.
+For the vocabulary projection, the single-row path avoids computing unused rows. Its local gain has limited reach. The call-count estimate in Table~\ref{tab:gemm} is small beside the general GEMM saving and assumes that the isolated per-call gain carries over to the model.
 
-\clearpage
-\subsection{Workload differences and output checks}
-% should clearly suggest from which experiment are we reporting the results
-The longest-duration group showed greater core ASR speedup than the shortest group (\(2.17\times\) versus \(1.87\times\)). ASR received the same size of feature tensor for every recording. The profiled example in each group had 1,500 encoder positions. 
-The short group generated 10--16 tokens per recording and the long group 17--26. With no key/value cache, more output steps mean more passes over the growing decoder sequence. Audio duration here is a grouping variable, and these measurements cannot isolate its effect from those decoder differences.
+For the narrow projection, Tiled-32 provides more blocks when 4-by-4 launches too few to use the whole slice. Adding a row gives 4-by-4 enough blocks to reach every multiprocessor in principle. Tiled-32 already had enough, and its additional block band brings extra work. This offers a reason for the crossover without treating the calculated grid size as measured occupancy. The narrow rule covers both row counts. Its value depends on the mix of calls in the model, which we showed later in the combination result.
 
-Across both versions and all repeats, token IDs, transcripts, record rankings, context and prompts matched for every query. Embeddings and search scores agreed within \(10^{-6}\) absolute and \(10^{-5}\) relative tolerances. The top five records contained on average 40.2\% of the labelled relevant records (Recall@5) for both versions. The retrieved evidence therefore had the same limited coverage after optimisation. Identical prompts show that the answer service received the same inputs. A service can return different answers for the same prompt, and this experiment did not score their correctness or check whether their claims were supported. We also did not measure transcription error against manual references for these queries.
+\subsection{Attention work at sequence boundaries}
 
-\section{Discussion and Conclusion} % need to
+With \(Q\) queries and \(w\) warps, each head has \(\lceil Q/w\rceil\) blocks. Every encoder block reads all key--value tiles. For causal attention with equal query and key lengths, block \(b\) (counting from one) visits \(\lceil \min(bw,Q)/s\rceil\) tiles of width \(s\). Table~\ref{tab:attn-length} sums these visits across blocks. Encoder latency falls less than the visit count, consistent with the query arithmetic that still has to run.
+
+At the causal boundary, the last query adds a block that visits every tile, including the new one. The same addition is proportionally larger for the wider block, which also has more idle query warps. At length 65, the 16-warp setting still visits fewer tiles (9 versus 15 per head) yet takes longer. The short encoder case shows the same limit. Block resources and the available parallel work matter alongside reuse.
+
+\begin{table}[H]
+\centering
+\caption{Experiment C. Median kernel times and calculated key--value tile visits per query head. Visits include partial tiles. The causal tests have equal query and key lengths.}
+\label{tab:attn-length}
+\small
+\begin{tabular}{@{}lr@{\hspace{1em}}rrr@{\hspace{1em}}rrr@{}}
+\toprule
+ & & \multicolumn{3}{c}{Latency (ms)} & \multicolumn{3}{c}{Tile visits} \\
+\cmidrule(lr){3-5}\cmidrule(l){6-8}
+Workload & Length & 4 warps & 8 warps & 16 warps & 4 & 8 & 16 \\
+\midrule
+Encoder & 1500 & 29.862 & 24.242 & 22.601 & 17,625 & 8,836 & 4,418 \\
+Short encoder-style & 32 & 0.0206 & 0.0162 & 0.0168 & 8 & 4 & 2 \\
+Causal decoder & 64 & 0.0793 & 0.0561 & 0.0496 & 24 & 12 & 6 \\
+Causal boundary & 65 & 0.0943 & 0.0683 & 0.0712 & 27 & 15 & 9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Combination of individual strategies}
+
+Subtracting both individual savings from the control predicts a time close to the combined measurement (Table~\ref{tab:asr}). The narrow rule saves linear time, and extra warps save attention time. The profile supports approximate additivity on this recording. The trials produced the same tokens and expected transcript. Appendices~\ref{app:profile} and~\ref{app:checks} give the profiles and successful course tests.
+
+\begin{table}[H]
+\centering
+\caption{Experiment D. Model medians and savings relative to its four-warp control. Profile savings are differences in separate GPU-event medians. Positive values mean less time.}
+\label{tab:asr}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Configuration & Model (ms) & Saved (ms) & Saved (\%) & Linear (ms) & Attn. (ms) \\
+\midrule
+4 warps, narrow rule off & 3372.00 & -- & -- & -- & -- \\
+4 warps, narrow rule on & 3336.70 & 35.30 & 1.05 & 35.61 & \(-0.05\) \\
+16 warps, narrow rule off & 3129.04 & 242.96 & 7.21 & 0.76 & 242.37 \\
+16 warps, narrow rule on & 3093.89 & 278.11 & 8.25 & 36.67 & 242.36 \\
+Additive prediction & 3093.74 & 278.26 & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{RAG full request}
+
+If only core ASR changes, the predicted full-request mean is \(\widehat{T}_F=T_O-A_O+A_F\), where \(T\) is mean full-request time and \(A\) is mean core ASR time. Table~\ref{tab:rag} compares prediction and measurement. The remote call takes nearly as long in both versions, which dilutes the ASR speedup. The observed mean exceeds the prediction because other local steps took longer. The paired interval supports a saving for this cohort.
+
+\begin{table}[H]
+\centering
+\caption{Experiment E. Medians and paired measures are aggregated by query. Mean speedup is the ratio of overall means. Intervals give 95\% bootstrap bounds on median paired savings.}
+\label{tab:rag}
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+Metric & Original (s) & Final (s) & Speedup & Saved (s) & Interval (s) \\
+\midrule
+Core ASR & 7.865 & 3.983 & \(1.985\times\) & 3.932 & [3.437, 4.401] \\
+Full request & 12.729 & 8.440 & \(1.461\times\) & 3.760 & [3.230, 4.341] \\
+\midrule
+Core ASR (mean) & 8.41 & 4.21 & -- & -- & -- \\
+Other local steps (mean) & 0.57 & 0.81 & -- & -- & -- \\
+Remote answer call (mean) & 4.99 & 4.98 & -- & -- & -- \\
+Full request (mean) & 13.97 & 9.99 & \(1.40\times\) & -- & -- \\
+Mean if only ASR changes & 13.97 & 9.78 & \(1.43\times\) & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Experiment E. Workload, regression and output checks. Encoder positions are from a separate profile of one clip per group. Positive paired savings mean Final was faster.}
+\label{tab:rag-checks}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Duration group & Output tokens per clip & Encoder positions & ASR speedup \\
+\midrule
+Short & 10--16 & 1,500 & \(1.872\times\) \\
+Medium & 14--19 & 1,500 & \(1.989\times\) \\
+Long & 17--26 & 1,500 & \(2.174\times\) \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+\begin{tabular}{@{}lr@{}}
+\toprule
+Query or stage check & Result \\
+\midrule
+Queries faster in Final (ASR / full request) & 30 of 30 / 29 of 30 \\
+Regressing query, paired median saving & \(-6.36\) s \\
+Slowest Final repeat: preparation / encoding / ELM & 11.25 / 13.31 / 7.68 s \\
+Exact match of tokens, transcript, ranking, context and prompt & 30/30 queries \\
+Recall@5 (Original / Final) & 40.2\% / 40.2\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In the regressing query's slowest Final repeat, audio preparation and query encoding each took longer than the remote call (Table~\ref{tab:rag-checks}). The cause of this local delay remains unknown.
+
+Long clips produced more tokens with the same feature size and profiled encoder lengths. Extra tokens add repeated decoder work without a key/value cache, which can increase the gain from faster kernels. Duration and decoder workload vary together here.
+
+Embeddings and retrieval scores agreed within tolerance. Matching rankings and prompts show that the same evidence reached ELM. Recall@5 shows how much labelled evidence was retrieved. Transcription error against human references and answer quality remain open.
+
+\section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-Giving threads and blocks more work reduced latency in the large operations that dominated the ASR model. The small matrices show why counting load requests alone is a poor guide. Fewer blocks and partly used tiles can cost more than reuse saves. The two shape rules are useful for exceptions, with their value set by how much each exception contributes to runtime. The complete request had a similar limit. After ASR was faster, the average request spent half its time waiting for the remote answer.
+The experiments prove the effectiveness of our optimsation strategies. Larger GEMM tiles and more attention queries per block sped up the operations that dominated ASR. With the single-row path and attention settings fixed, 4-by-4 reduced model latency by \(43\%\) on the reference recording. On the development set, the final configuration gave paired speedups of \(1.98\times\) for core ASR and \(1.46\times\) for full requests, with identical transcripts and retrieval rankings.
 
-The evidence is from one GPU slice type, a single reference recording for the isolated changes, and 30 development queries in one service window for the full request. The interval reflects variation across queries in this service window. Cold-start cost and variation across allocations need separate measurements. On another allocation we would record actual reads from GPU main memory and concurrent blocks for the same shape under both layouts. That would help distinguish a gain from fewer memory reads from one limited by the amount of work the GPU can run in parallel. Longer inputs and independent answer scoring would help establish how broadly the findings apply. % Maybe refine this 
+Although larger tiles and blocks use more resources, leave fewer blocks to schedule, and can waste work on partial tiles, the experiments show that these edge cases are overweighed by the gains from main workload. These changes required local edits to the CUDA kernels and a short GEMM dispatch rule, which also proves the cost-efficiency of our improvement.
+
+Certain limitations also exist in our result. For example, all of our GPU measurements used the same H200 MIG slice configuration, but the best tile size and warp count may differ on GPUs with different caches and resources per multiprocessor. Also, although CUDA events show how long a kernel runs, the contributions of memory traffic, cache reuse and concurrent work remain uncertain. In the future investigation, we can repeat the shape comparisons on a different GPU and use a kernel profiler to measure device-memory traffic, cache hit rates and active warps, which can help reveal how broadly our conclusion applies.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -249,19 +365,11 @@ The evidence is from one GPU slice type, a single reference recording for the is
 
 % Put your Appendix here if needed. Comment out if you don't need it.
 \appendix
-\section{Appendix title}
 \section{ASR profile records}
 \label{app:profile}
 \paragraph{General matrix comparison.}
-The 16-wide control used the specialised single-row path and four attention warps. The same GPU allocation recorded \texttt{nvidia-smi -L}, all four successful \texttt{make test} tasks and a profile from the unchanged course benchmark. The saved command invoked the benchmark directly and set \texttt{ASR\_LIB} to the 16-wide control library. The excerpt omits personal paths.
+The Tiled-16 control used the single-row path and four attention warps. All four course test suites passed on the same GPU allocation. The excerpt shows one transcription profiled with all CUDA kernels enabled using the course benchmark.
 
-\begin{verbatim}
-ASR_LIB=/path/to/16-wide-libasr_kernels.so HF_HUB_OFFLINE=1 \
-  python -u benchmark.py --cuda all --warmup 1 --runs 1 \
-  --profile --tokens
-\end{verbatim}
-
-\noindent The following rows are from that course benchmark log.
 \begin{verbatim}
 GPU: NVIDIA H200 MIG 1g.18gb (sm_90)
 run 1: 5944.9 ms  (13 tokens)
@@ -274,13 +382,10 @@ Status: PASS
 \end{verbatim}
 
 \paragraph{Combined configuration.}
-A different H200 MIG allocation ran the combined version. Its experiment runner collected each operation's GPU event total for a transcription using the course profiling hooks in \texttt{ops.py}. The table gives the median total across three processes. The corresponding course tests are in Appendix~\ref{app:checks}.
+The combined configuration ran in a separate allocation of the same H200 MIG slice type. The table gives the median GPU event time per operation for one transcription across three model processes. Its course test results are in Appendix~\ref{app:checks}.
 
 \input{asr-profile.tex}
 
-\subsection{Experiment records}
-The tables in the report use the exported results under \path{report/reuse_results_20261119/}. The matrix comparison (\texttt{20261117T192802Z-615737}) contains \path{gpu.log}, \path{tests/tiled16.log} and \path{model/official_baseline.log}. The boundary and combination run (\texttt{20261118T225304Z}) contains \path{asr/tests/combined.log} and \path{asr/operation_profiles.csv}. The full-request run (\texttt{20261118T235107Z}) contains the sample and request manifests.
- 
 \clearpage
 \section{Course test results}
 \label{app:checks}
@@ -299,25 +404,28 @@ All cases below passed for the combined configuration, using the same GPU alloca
 % or to complete other tasks. In all cases, you remain entirely responsible
 % for the material you produce.
 \section*{AI declaration}
-Please acknowledge your use of AI here.
+We completed all the required code blanks in the baseline CUDA kernels and implemented part of the optimisations and experimental code. We chose the research topic, prepared the report outline, and developed its main technical content and analysis.
+
+We used OpenAI Codex for guidance on the baseline kernels and to check our implementation. Codex also helped refine the experiments and develop test scripts. For the report, we used Codex to revise parts of the text, adjust the LaTeX formatting, and create figures and tables. We take responsibility for the submitted code, results, and report.
 
 % Please put the information of your group here without changing the format.
 % This page will be deleted when the report is distributed for reviewing.
 \section*{Group information}
-Group ID: XXX
+Group ID: [MLS-0081]
 
 Information of group member A:
 \begin{itemize}
-    \item Name: John Doe
-    \item UUN: sXXXXXXX
+    \item Name: [Runqiu Yi]
+    \item UUN: [S2955206]
 \end{itemize}
 
-% Keep this COMMENTED OUT, unless there is more than one member.
-% Information of group member B:
-% \begin{itemize}
-%     \item Name: John Doe
-%     \item UUN: sXXXXXXX
-% \end{itemize}
+Uncomment and complete if the group has two members.
+Information of group member B:
+\begin{itemize}
+    \item Name: [David Gogu]
+    \item UUN: [S2082395]
+\end{itemize}
+
 
 % Keep this COMMENTED OUT, unless there is more than one member and you feel like
 % it is necessary to point out the contribution. Please notice that members from
